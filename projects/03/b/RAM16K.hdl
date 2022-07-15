@@ -8,6 +8,7 @@
  * stored at the memory location specified by address. If load==1, then 
  * the in value is loaded into the memory location specified by address 
  * (the loaded value will be emitted to out from the next time step onward).
+ * RAM16K由4個RAM4K所組成
  */
 
 CHIP RAM16K {
@@ -15,5 +16,12 @@ CHIP RAM16K {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    DMux4Way(in=load, sel=address[0..1], a=l1, b=l2, c=l3, d=l4);
+
+    RAM4K(in=in, load=l1, address=address[2..13], out=t1);
+    RAM4K(in=in, load=l2, address=address[2..13], out=t2);
+    RAM4K(in=in, load=l3, address=address[2..13], out=t3);
+    RAM4K(in=in, load=l4, address=address[2..13], out=t4);
+
+    Mux4Way16(a=t1, b=t2, c=t3, d=t4, sel=address[0..1], out=out);
 }
