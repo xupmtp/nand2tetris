@@ -8,6 +8,9 @@
  * stored at the memory location specified by address. If load==1, then 
  * the in value is loaded into the memory location specified by address 
  * (the loaded value will be emitted to out from the next time step onward).
+ * RAM64 由8個RAM8所組成, address為0~64共6Bit
+ * RAM8只能傳入3Bit address所以將address拆成2部分
+ * 由address[0..2]和address[3..5](會產生l1,l2...)組成共64種位址
  */
 
 CHIP RAM64 {
@@ -15,16 +18,18 @@ CHIP RAM64 {
     OUT out[16];
 
     PARTS:
-    DMux8Way(in=load, sel=address[0..2], a=l1, b=l2, c=l3, d=l4, e=l5, f=l6, g=l7, h=l8);
+    // 找出address[3..5] 8種load可能
+    DMux8Way(in=load, sel=address[3..5], a=l1, b=l2, c=l3, d=l4, e=l5, f=l6, g=l7, h=l8);
 
-    RAM8(in=in, load=l1, address=, out=t1);
-    RAM8(in=in, load=l2, address=, out=t2);
-    RAM8(in=in, load=l3, address=, out=t3);
-    RAM8(in=in, load=l4, address=, out=t4);
-    RAM8(in=in, load=l5, address=, out=t5);
-    RAM8(in=in, load=l6, address=, out=t6);
-    RAM8(in=in, load=l7, address=, out=t7);
-    RAM8(in=in, load=l8, address=, out=t8);
+    // 8Bit Register * 8
+    RAM8(in=in, load=l1, address=address[0..2], out=t1);
+    RAM8(in=in, load=l2, address=address[0..2], out=t2);
+    RAM8(in=in, load=l3, address=address[0..2], out=t3);
+    RAM8(in=in, load=l4, address=address[0..2], out=t4);
+    RAM8(in=in, load=l5, address=address[0..2], out=t5);
+    RAM8(in=in, load=l6, address=address[0..2], out=t6);
+    RAM8(in=in, load=l7, address=address[0..2], out=t7);
+    RAM8(in=in, load=l8, address=address[0..2], out=t8);
 
-    Mux8Way16(a=t1, b=t2, c=t3, d=t4, e=t5, f=t6, g=t7, h=t8, sel=, out=out);
+    Mux8Way16(a=t1, b=t2, c=t3, d=t4, e=t5, f=t6, g=t7, h=t8, sel=address[3..5], out=out);
 }
