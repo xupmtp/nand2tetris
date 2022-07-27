@@ -25,9 +25,11 @@
  * than to the address resulting from executing the current instruction. 
  */
 
+
 CHIP CPU {
 
     IN  inM[16],         // M value input  (M = contents of RAM[A])
+        // 作為指令時16位分別是: 111 ac1c2cc3c4c5c6 d1d2d3 j1j2j3
         instruction[16], // Instruction for execution
         reset;           // Signals whether to re-start the current
                          // program (reset==1) or continue executing
@@ -39,5 +41,56 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    /* ====== Mux & ARegister and addressM output ====== 
+     * 1. Mux判斷instruction是否為指令
+     * 2. ARegister判斷是否要load資料
+     */
+    Mux16(a=instruction, b=aluOut, sel=instruction[15], out=dataOrAddress);
+    Not(in=instruction[15], out=i1);
+    // 如果instruction不是指令 or instruction是指令但d1(是否寫入A)=1 load=1
+    Or(a=i1, b=instruction[5], out=isWAReg);
+    ARegister(in=dataOrAddress, load=isWAReg, out=ARegOut, out[0..14]=addressM);
+
+    /* ====== DRegister ====== 
+     * 3. DRegister判斷是否要load資料
+     */
+    // instruction是指令 and 如果d2(是否寫入D)=1 load=1
+    And(a=instruction[15], b=instruction[4], out=isWDReg);
+    DRegister(in=aluOut, load=isWDReg, out=DRegOut);
+
+    /* ====== ALU and outM output ====== 
+     * 4. Mux判斷輸入ALU的資料來源
+     * 5. ALU處理計算
+     */
+    // a位(instruction[12]) 判斷要使用ARegister還是MRegister(from inM)的資料
+    Mux16(a=ARegOut, b=inM, sel=instruction[12], out=inmOrAReg);
+    // 計算傳入的2個值輸出到outM, zr,ng輸出作為判斷是否jUMP的參數
+    ALU(x=DRegOut, y=inmOrAReg, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=aluOut, out=outM, zr=zr, ng=ng);
+
+    /* ====== writeM output ====== 
+     * 6. 判斷writeM輸出內容, writeM作用是在computer中判斷outM是否要寫入Memory中
+     */
+    // if instruction 作為指令 and d3(控制是否輸出M)=1
+    And(a=instruction[15], b=instruction[3], out=writeM);
+
+    /* ====== PC & PC output ====== 
+     * 7. PC處理下個指令指向的address
+     * 默認address++, 往下個指令執行
+     * JUMP => addrss指向in輸入的內容
+     * reset=1 => address=0
+     */
+    Or(a=zr, b=ng, out=a1);
+    // if out > 0 then 1
+    Not(in=a1, out=moreThanZero);
+    // 3個Mux為 if (moreThanZero,zr,ng)=0 or (moreThanZero,zr,ng) = 1 and JUMP對應Bit須為1 then 1 else 0 
+    Mux(a=true, b=instruction[0], sel=moreThanZero, out=jmpTo1);
+    Mux(a=true, b=instruction[1], sel=zr, out=jmpTo2);
+    Mux(a=true, b=instruction[2], sel=ng, out=jmpTo3);
+    // 3個判斷必須為1
+    And(a=jmpTo1, b=jmpTo2, out=jmpTo4);
+    And(a=jmpTo3, b=jmpTo4, out=jmpTo5);
+    // if instruction 作為指令
+    And(a=instruction[15], b=jmpTo5, out=jmpTo6);
+    // 傳入ARegister值, 若load=0,預設動作address+1(inc=1)
+    PC(in=ARegOut, load=jmpTo6, inc=true, reset=reset, out[0..14]=pc);
 }

@@ -27,5 +27,17 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // 決定要load到哪個address
+    DMux4Way(in=load, sel=address[13..14], a=d1, b=d2, c=d3, d=d4);
+    // d1,d2 load同個RAM
+    Or(a=d1, b=d2, out=d5);
+
+    // 3種RAM代表3種硬體
+    RAM16K(in=in, load=d5, address=address[0..13], out=r1);
+    Screen(in=in, load=d3, address=address[0..12], out=r2);
+    Keyboard(out=r3);
+    // d1~d4可能會都為0(load=0時)
+    // 但address[13..14]經過Mux必有一個結果
+    // 所以重新經過Mux gate決定要取哪個RAM的結果
+    Mux4Way16(a=r1, b=r1, c=r2, d=r3, sel=address[13..14], out=out);
 }

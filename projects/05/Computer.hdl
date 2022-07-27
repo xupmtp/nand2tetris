@@ -19,5 +19,10 @@ CHIP Computer {
     IN reset;
 
     PARTS:
-    // Put your code here:
+    // 指令存儲器, 告訴CPU要讀取/寫入的address
+    ROM32K(address=addr, out=ins);
+    // CPU 核心運算單位, 處理計算,暫存,解析指令等大部分工作
+    CPU(inM=mout, instruction=ins, reset=reset, outM=om, writeM=wrm, addressM=adm, pc=addr);
+    // 資料存儲器, 接收address作為索引, 找出要讀取/寫入的register位置
+    Memory(in=om, load=wrm, address=adm, out=mout);
 }
