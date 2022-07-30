@@ -1,5 +1,7 @@
 class Symbol_Table:
+    """一個map table，紀錄所有變數代表的address數字"""
     def __init__(self):
+        self.symbol_default_address = 16
         self.table = {
             'SP': 0, 'LCL': 1, 'ARG': 2,
             'THIS': 3, 'THAT': 4, 
@@ -21,8 +23,10 @@ class Symbol_Table:
 
 
     def get_address(self, symbol: str) -> int:
-        if symbol not in self.table:
-            print('get address fail')
-            return -1
         return self.table[symbol]
+
+
+    def add_new_symbol(self, symbol):
+        self.add_entry(symbol, self.symbol_default_address)
+        self.symbol_default_address += 1
         
