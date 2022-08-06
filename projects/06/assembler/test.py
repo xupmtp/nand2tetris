@@ -1,1 +1,5 @@
-print(int(123))
+a = {
+    'f': lambda x: print(x)
+}
+
+a['f'](123)

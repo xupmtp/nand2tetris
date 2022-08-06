@@ -1,0 +1,12 @@
+class Constant:
+    # command_type
+    C_ERROR = -1
+    C_ARITHMETIC = 0
+    C_PUSH = 1
+    C_POP = 2
+    C_LABEL = 3
+    C_GOTO = 4
+    C_IF = 5
+    C_RETURN = 6
+    C_FUNCTION = 7
+    C_CALL = 8
