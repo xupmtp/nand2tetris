@@ -1,5 +1,6 @@
-a = {
-    'f': lambda x: print(x)
-}
+def f():
+    ff()
+    def ff():
+        print('aaa')
 
-a['f'](123)
+f()
