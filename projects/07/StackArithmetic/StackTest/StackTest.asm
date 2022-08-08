@@ -29,6 +29,7 @@ D=0
 D=-1
 (BOOL_0_END)
 @SP
+A=M
 M=D
 @SP
 M=M+1
@@ -63,6 +64,7 @@ D=0
 D=-1
 (BOOL_1_END)
 @SP
+A=M
 M=D
 @SP
 M=M+1
@@ -97,6 +99,7 @@ D=0
 D=-1
 (BOOL_2_END)
 @SP
+A=M
 M=D
 @SP
 M=M+1
@@ -131,6 +134,7 @@ D=0
 D=-1
 (BOOL_3_END)
 @SP
+A=M
 M=D
 @SP
 M=M+1
@@ -165,6 +169,7 @@ D=0
 D=-1
 (BOOL_4_END)
 @SP
+A=M
 M=D
 @SP
 M=M+1
@@ -199,6 +204,7 @@ D=0
 D=-1
 (BOOL_5_END)
 @SP
+A=M
 M=D
 @SP
 M=M+1
@@ -233,6 +239,7 @@ D=0
 D=-1
 (BOOL_6_END)
 @SP
+A=M
 M=D
 @SP
 M=M+1
@@ -267,6 +274,7 @@ D=0
 D=-1
 (BOOL_7_END)
 @SP
+A=M
 M=D
 @SP
 M=M+1
@@ -301,6 +309,7 @@ D=0
 D=-1
 (BOOL_8_END)
 @SP
+A=M
 M=D
 @SP
 M=M+1
@@ -346,6 +355,9 @@ M=M+1
 M=M-1
 A=M
 D=M
+@SP
+M=M-1
+A=M
 M=M-D
 @SP
 M=M+1
@@ -353,9 +365,6 @@ M=M+1
 M=M-1
 A=M
 D=M
-@SP
-M=M-1
-A=M
 M=-M
 @SP
 M=M+1

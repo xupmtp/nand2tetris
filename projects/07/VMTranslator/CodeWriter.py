@@ -25,6 +25,7 @@ class Code_Writer:
             res.append('D=-1')
             res.append(f'(BOOL_{self.b_count}_END)')
             res.append('@SP')
+            res.append('A=M')
             res.append('M=D')
             return res
 
@@ -41,7 +42,7 @@ class Code_Writer:
             self.con.NOT: ['M=!M']
         }
         res = ['@SP', 'M=M-1', 'A=M', 'D=M']
-        if not self.con.SUB == cmd and not self.con.NOT == cmd:
+        if not self.con.NEG == cmd and not self.con.NOT == cmd:
             res += ['@SP', 'M=M-1', 'A=M']
         res += arith_dist[cmd]
         res += ['@SP', 'M=M+1']
@@ -57,26 +58,24 @@ class Code_Writer:
             self.con.THAT: '@THAT',
             self.con.THIS: '@THIS',
             self.con.CONSTATNT: f'@{index}',
-            self.con.STATIC: f'{self.f_name}.{index}',
+            self.con.STATIC: f'@{self.f_name}.{index}',
             self.con.TEMP: '@R5',
-            self.con.POINTER: '@THIS' if index == 0 else '@THAT'
+            self.con.POINTER: '@THIS' if int(index) == 0 else '@THAT'
         }
 
 
         def _push(addr, i):
             # get segment address位移數字
-            push_list = [f'@{i}', 'D=A'] if segment not in 'constant,static' else []
-            push_list.append(addr)
-            if segment == self.con.TEMP:
-                push_list.append('A=A+D')
-            elif segment not in 'constant,static':
-                push_list.append('A=M+D')
-            push_list.append(f'D={"A" if segment == self.con.CONSTATNT else "M"}')
-            push_list.append('@SP')
-            push_list.append('A=M')
-            push_list.append('M=D')
-            push_list.append('@SP')
-            push_list.append('M=M+1')
+            push_list = []
+            if segment == self.con.CONSTATNT:
+                push_list = [addr, 'D=A']
+            elif segment in ',static,pointer':
+                push_list = [addr, 'D=M']
+            else:
+                tmp_data = 'A=A+D' if segment == self.con.TEMP else 'A=M+D'
+                push_list = [f'@{i}', 'D=A', addr, tmp_data, 'D=M']
+
+            push_list += ['@SP', 'A=M', 'M=D', '@SP', 'M=M+1']
 
             return '\n'.join(push_list)
     
@@ -86,7 +85,7 @@ class Code_Writer:
             tmp_data = 'D=A+D' if segment == self.con.TEMP else 'D=M+D'
             if self.con.CONSTATNT == segment:
                 return ''
-            elif self.con.STATIC == segment:
+            elif self.con.STATIC == segment or self.con.POINTER == segment:
                 pop_list = ['@SP', 'M=M-1', 'A=M', 'D=M', addr, 'M=D']
             else:
                 # get segment address
