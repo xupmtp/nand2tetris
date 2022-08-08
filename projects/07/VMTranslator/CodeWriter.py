@@ -2,6 +2,7 @@ from Constant import *
 
 
 class Code_Writer:
+    """解析命令轉換成assembly code"""
     def __init__(self, f_name) -> None:
         self.f_name = f_name
         self.con = Constant()
@@ -13,23 +14,19 @@ class Code_Writer:
 
 
     def write_arithmetic(self, cmd) -> None:
+        """邏輯&運算命令處理"""
         def bool_list(goto):
-            res = ['D=M-D']
-            res.append(f'@BOOL_{self.b_count}_TRUE')
-            res.append(goto)
+            # 判斷bool值跳往哪
+            res = ['D=M-D', f'@BOOL_{self.b_count}_TRUE', goto]
             # bool false
-            res.append('D=0')
-            res.append(f'@BOOL_{self.b_count}_END')
-            res.append('0;JMP')
-            res.append(f'(BOOL_{self.b_count}_TRUE)')
-            res.append('D=-1')
-            res.append(f'(BOOL_{self.b_count}_END)')
-            res.append('@SP')
-            res.append('A=M')
-            res.append('M=D')
+            res += ['D=0', f'@BOOL_{self.b_count}_END', '0;JMP']
+            # bool true
+            res += [f'(BOOL_{self.b_count}_TRUE)', 'D=-1']
+            # end and set to stack
+            res += [f'(BOOL_{self.b_count}_END)', '@SP', 'A=M', 'M=D']
             return res
 
-
+        # 邏輯/運算命令dist
         arith_dist = {
             self.con.ADD: ['M=M+D'],
             self.con.SUB: ['M=M-D'],
@@ -41,10 +38,14 @@ class Code_Writer:
             self.con.OR: ['M=M|D'],
             self.con.NOT: ['M=!M']
         }
+        # pop y
         res = ['@SP', 'M=M-1', 'A=M', 'D=M']
+        # 如果需要2個值運算時，pop x
         if not self.con.NEG == cmd and not self.con.NOT == cmd:
             res += ['@SP', 'M=M-1', 'A=M']
+        # 邏輯/運算命令
         res += arith_dist[cmd]
+        # stack++
         res += ['@SP', 'M=M+1']
         self.out_file.write('\n'.join(res))
         self.out_file.write('\n')
@@ -52,6 +53,8 @@ class Code_Writer:
 
 
     def write_push_pop(self, cmd, segment, index) -> None:
+        """處理push/pop命令，分2個子函數處理"""
+        # segment轉assembly code
         segment_dist = {
             self.con.LOCAL: '@LCL',
             self.con.ARGUMENT: '@ARG',
@@ -65,8 +68,8 @@ class Code_Writer:
 
 
         def _push(addr, i):
-            # get segment address位移數字
             push_list = []
+            # 1. 取得segment address儲存的值
             if segment == self.con.CONSTATNT:
                 push_list = [addr, 'D=A']
             elif segment in ',static,pointer':
@@ -75,6 +78,7 @@ class Code_Writer:
                 tmp_data = 'A=A+D' if segment == self.con.TEMP else 'A=M+D'
                 push_list = [f'@{i}', 'D=A', addr, tmp_data, 'D=M']
 
+            # push值到stack and stack++
             push_list += ['@SP', 'A=M', 'M=D', '@SP', 'M=M+1']
 
             return '\n'.join(push_list)
@@ -82,13 +86,15 @@ class Code_Writer:
 
         def _pop(addr, i):
             pop_list = []
-            tmp_data = 'D=A+D' if segment == self.con.TEMP else 'D=M+D'
+            # 正常pop不會有CONSTATNT，防止意外命令
             if self.con.CONSTATNT == segment:
                 return ''
+            # static和pointer的index段用於address處理，故不需加入@i
             elif self.con.STATIC == segment or self.con.POINTER == segment:
                 pop_list = ['@SP', 'M=M-1', 'A=M', 'D=M', addr, 'M=D']
             else:
-                # get segment address
+                tmp_data = 'D=A+D' if segment == self.con.TEMP else 'D=M+D'
+                # segment address = segmentPointer + i
                 pop_list = [f'@{i}', 'D=A', addr, tmp_data]
                 # pop stack and insert to segment address
                 pop_list += ['@SP', 'M=M-1', 'A=M', 'D=D+M', 'A=D-M', 'M=D-A']
@@ -96,16 +102,17 @@ class Code_Writer:
             return '\n'.join(pop_list)
 
 
-        i = 0 if self.con.POINTER == segment else index
+        # 判斷是push pr pop
         if cmd == self.con.C_PUSH:
-            self.out_file.write(_push(segment_dist[segment], i))
+            self.out_file.write(_push(segment_dist[segment], index))
         elif cmd == self.con.C_POP:
-            self.out_file.write(_pop(segment_dist[segment], i))
+            self.out_file.write(_pop(segment_dist[segment], index))
         else:
             print('push/pop cmd type error')
         self.out_file.write('\n')
 
 
     def close(self) -> None:
+        # 結束前加入停止段(可不加)
         self.out_file.write('\n'.join(['(END)', '@END', '0;JMP']))
         self.out_file.close()

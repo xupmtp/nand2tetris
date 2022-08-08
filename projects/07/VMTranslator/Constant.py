@@ -1,4 +1,6 @@
 class Constant:
+    """常數module"""
+
     """command_type"""
     C_ERROR = -1
     C_ARITHMETIC = 0

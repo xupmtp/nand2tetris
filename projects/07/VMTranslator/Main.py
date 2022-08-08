@@ -11,6 +11,7 @@ class Main:
 
 
     def translator(self) -> None:
+        """迭代文件，判斷命令並執行相應函數"""
         while self.parser.has_more_commands():
             self.parser.advance()
             type = self.parser.command_type()
