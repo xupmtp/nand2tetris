@@ -63,6 +63,7 @@ class Code_Writer:
             self.con.CONSTATNT: f'@{index}',
             self.con.STATIC: f'@{self.f_name}.{index}',
             self.con.TEMP: '@R5',
+            # pointer指令是 push/pop @THIS/@THAT的值，而不是一般將@THIS/@THAT作為索引操作其他地址
             self.con.POINTER: '@THIS' if int(index) == 0 else '@THAT'
         }
 
@@ -113,6 +114,4 @@ class Code_Writer:
 
 
     def close(self) -> None:
-        # 結束前加入停止段(可不加)
-        self.out_file.write('\n'.join(['(END)', '@END', '0;JMP']))
         self.out_file.close()
