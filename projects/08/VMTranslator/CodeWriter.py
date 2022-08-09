@@ -122,15 +122,18 @@ class Code_Writer:
 
 
     def write_label(label: str) -> None:
-        pass
+        """create a new label"""
+        return f'({label})'
 
 
     def write_goto(label: str) -> None:
-        pass
+        """jump to label"""
+        return '\n'.join([f'@{label}', '0;JMP'])
 
 
     def write_if(label: str) -> None:
-        pass
+        """if stack pop() == true : jump to label"""
+        '\n'.join(['@SP', 'M=M-1', 'A=M', 'D=M', f'@{label}', 'D;JLT'])
 
 
     def write_function(fn_name: str, num_vars: int) -> None:

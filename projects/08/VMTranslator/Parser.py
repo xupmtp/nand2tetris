@@ -12,13 +12,12 @@ class Parser:
         'pop': constant.C_POP,
         'label': constant.C_LABEL,
         'goto': constant.C_GOTO,
-        'if': constant.C_IF,
+        'if-goto': constant.C_IF,
         'return': constant.C_RETURN,
         'function': constant.C_FUNCTION,
         'call': constant.C_CALL
     }
-
-
+    
     def __init__(self, in_file) -> None:
         self.file = self._remove_empty_and_annotation(in_file)
 
@@ -34,13 +33,13 @@ class Parser:
 
     def command_type(self) -> int:
         cmd_list = self.current_cmd.split()
-        if len(cmd_list) == 1 and cmd_list[0] not in self.cmd_type:
+        cmd0 = cmd_list[0].lower()
+        if len(cmd_list) == 1 and cmd0 not in self.cmd_type:
             return self.constant.C_ARITHMETIC
-        elif cmd_list[0] in self.cmd_type:
-            return self.cmd_type[cmd_list[0]]
+        elif cmd0 in self.cmd_type:
+            return self.cmd_type[cmd0]
         else:
             return self.constant.C_ERROR
-
 
 
     def args1(self) -> str:
