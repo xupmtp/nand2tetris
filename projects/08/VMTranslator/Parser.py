@@ -33,7 +33,7 @@ class Parser:
 
     def command_type(self) -> int:
         cmd_list = self.current_cmd.split()
-        cmd0 = cmd_list[0].lower()
+        cmd0 = cmd_list[0].lower().strip()
         if len(cmd_list) == 1 and cmd0 not in self.cmd_type:
             return self.constant.C_ARITHMETIC
         elif cmd0 in self.cmd_type:

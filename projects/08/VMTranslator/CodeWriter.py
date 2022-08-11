@@ -48,7 +48,6 @@ class Code_Writer:
         # stack++
         res += ['@SP', 'M=M+1']
         self.out_file.write('\n'.join(res))
-        self.out_file.write('\n')
         self.b_count += 1
 
 
@@ -110,41 +109,43 @@ class Code_Writer:
             self.out_file.write(_pop(segment_dist[segment], index))
         else:
             print('push/pop cmd type error')
-        self.out_file.write('\n')
 
 
-    def set_file_name(f_name: str) -> None:
+    def set_file_name(self, f_name: str) -> None:
         pass
 
 
-    def write_init() -> None:
+    def write_init(self) -> None:
         pass
 
 
-    def write_label(label: str) -> None:
+    def write_label(self, label: str) -> None:
         """create a new label"""
-        return f'({label})'
+        # TODO 若label在function內定義 需命名為"f_name:label"
+        self.out_file.write(f'({label})')
 
 
-    def write_goto(label: str) -> None:
+    def write_goto(self, label: str) -> None:
         """jump to label"""
-        return '\n'.join([f'@{label}', '0;JMP'])
+        # TODO 若label在function內定義 需改呼叫"f_name:label"
+        self.out_file.write('\n'.join([f'@{label}', '0;JMP']))
 
 
-    def write_if(label: str) -> None:
-        """if stack pop() == true : jump to label"""
-        '\n'.join(['@SP', 'M=M-1', 'A=M', 'D=M', f'@{label}', 'D;JLT'])
+    def write_if(self, label: str) -> None:
+        """if stack pop() != 0 : jump to label"""
+        # TODO 若label在function內定義 需改呼叫"f_name:label"
+        self.out_file.write('\n'.join(['@SP', 'M=M-1', 'A=M', 'D=M', f'@{label}', 'D;JNE']))
 
 
-    def write_function(fn_name: str, num_vars: int) -> None:
+    def write_function(self, fn_name: str, num_vars: int) -> None:
         pass
 
 
-    def write_call(fn_name: str, num_args: int) -> None:
+    def write_call(self, fn_name: str, num_args: int) -> None:
         pass
 
 
-    def write_return() -> None:
+    def write_return(self) -> None:
         pass
 
 
