@@ -6,7 +6,12 @@ class Code_Writer:
     def __init__(self, f_name) -> None:
         self.f_name = f_name
         self.con = Constant()
-        self.b_count = 0
+        # 區分bool label
+        self.b_count = 1
+        # 區分return label
+        self.r_count = 1
+        # 區分label commands
+        self.curr_func_name = []
         try:
             self.out_file = open(f'./{f_name}.asm', 'w')
         except:
@@ -47,7 +52,7 @@ class Code_Writer:
         res += arith_dist[cmd]
         # stack++
         res += ['@SP', 'M=M+1']
-        self.out_file.write('\n'.join(res))
+        self.write_to_file(res)
         self.b_count += 1
 
 
@@ -81,7 +86,7 @@ class Code_Writer:
             # push值到stack and stack++
             push_list += ['@SP', 'A=M', 'M=D', '@SP', 'M=M+1']
 
-            return '\n'.join(push_list)
+            return push_list
     
 
         def _pop(addr, i):
@@ -99,14 +104,14 @@ class Code_Writer:
                 # pop stack and insert to segment address
                 pop_list += ['@SP', 'M=M-1', 'A=M', 'D=D+M', 'A=D-M', 'M=D-A']
 
-            return '\n'.join(pop_list)
+            return pop_list
 
 
         # 判斷是push pr pop
         if cmd == self.con.C_PUSH:
-            self.out_file.write(_push(segment_dist[segment], index))
+            self.write_to_file(_push(segment_dist[segment], index))
         elif cmd == self.con.C_POP:
-            self.out_file.write(_pop(segment_dist[segment], index))
+            self.write_to_file(_pop(segment_dist[segment], index))
         else:
             print('push/pop cmd type error')
 
@@ -121,33 +126,76 @@ class Code_Writer:
 
     def write_label(self, label: str) -> None:
         """create a new label"""
-        # TODO 若label在function內定義 需命名為"f_name:label"
-        self.out_file.write(f'({label})')
+        self.out_file.write(f'({self._get_curr_fn(label)})')
 
 
     def write_goto(self, label: str) -> None:
         """jump to label"""
-        # TODO 若label在function內定義 需改呼叫"f_name:label"
-        self.out_file.write('\n'.join([f'@{label}', '0;JMP']))
+        self.write_to_file([f'@{self._get_curr_fn(label)}', '0;JMP'])
 
 
     def write_if(self, label: str) -> None:
         """if stack pop() != 0 : jump to label"""
-        # TODO 若label在function內定義 需改呼叫"f_name:label"
-        self.out_file.write('\n'.join(['@SP', 'M=M-1', 'A=M', 'D=M', f'@{label}', 'D;JNE']))
+        self.write_to_file(['@SP', 'M=M-1', 'A=M', 'D=M', f'@{self._get_curr_fn(label)}', 'D;JNE'])
 
 
-    def write_function(self, fn_name: str, num_vars: int) -> None:
-        pass
+    def write_function(self, fn_name: str, num_vars: str) -> None:
+        # for label命名時紀錄當前function name
+        self.curr_func_name.append(fn_name)
+        assembly = [f'({fn_name})', '@LCL', 'M=0'] + sum([['A=A+1', 'M=0'] for i in range(int(num_vars) - 1)], [])
+        self.write_to_file(assembly)
 
 
     def write_call(self, fn_name: str, num_args: int) -> None:
-        pass
+        # save "return LCL ARG THIS THAT" address to stack
+        res = [f'@{self.f_name}$ret.{self.r_count}', 'D=A', '@SP', 'A=M', 'M=D']
+        res += ['@LCL', 'D=A', '@SP', 'AM=M+1', 'M=D']
+        res += ['@ARG', 'D=A', '@SP', 'AM=M+1', 'M=D']
+        res += ['@THIS', 'D=A', '@SP', 'AM=M+1', 'M=D']
+        res += ['@THAT', 'D=A', '@SP', 'AM=M+1', 'M=D', '@SP', 'M=M+1']
+        # ARG = SP-5-num_args
+        res += ['@5', 'D=A', f'@{num_args}', 'D=D+A', '@SP', 'D=M-D', '@ARG', 'M=D']
+        # LCL = SP
+        res += ['@SP', 'D=M', '@LCL', 'M=D']
+        # go to function label and create return label
+        res += [f'@{fn_name}', '0;JMP', f'({self.f_name}$ret.{self.r_count})']
+
+        self.write_to_file(res)
+        self.r_count += 1
 
 
     def write_return(self) -> None:
-        pass
+        # for label命名時紀錄當前function name
+        self.curr_func_name.pop()
+        # 設變數endFrame=LCL
+        res = ['@LCL', 'D=M', '@endFrame', 'M=D']
+        # 設變數retAddr=return address *(LCL-5)
+        res += ['@5', 'A=D-A', 'D=M', '@retAddr', 'M=D']
+        # SP pop(return value) and push to ARG 0
+        res += ['@SP', 'AM=M-1', 'D=M', '@ARG', 'A=M', 'D=M']
+        # SP = ARG+1
+        res += ['D=A+1', '@SP', 'M=D']
+        # 回復 "THAT THIS ARG LCL"儲存address到上一層函數的值
+        res += ['@endFrame', 'AM=M-1', 'D=M', '@THAT', 'M=D']
+        res += ['@endFrame', 'AM=M-1', 'D=M', '@THIS', 'M=D']
+        res += ['@endFrame', 'AM=M-1', 'D=M', '@ARG', 'M=D']
+        res += ['@endFrame', 'AM=M-1', 'D=M', '@LCL', 'M=D']
+        # jump to return label address
+        res += ['@retAddr', 'A=D', '0;JMP']
+
+        self.write_to_file(res)
 
 
     def close(self) -> None:
         self.out_file.close()
+
+
+    def _get_curr_fn(self, label):
+        # 若label在function內定義 需命名為"f_name:label"，便於區分不同function中相同名稱的label
+        if len(self.curr_func_name) > 0:
+            return f'{self.curr_func_name[-1]}:{label}'
+        return label
+
+
+    def write_to_file(self, assembly_list: list) -> None:
+        self.out_file.write('\n'.join(assembly_list))
