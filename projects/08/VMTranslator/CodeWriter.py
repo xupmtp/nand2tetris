@@ -3,8 +3,8 @@ from Constant import *
 
 class Code_Writer:
     """解析命令轉換成assembly code"""
-    def __init__(self, f_name) -> None:
-        self.f_name = f_name
+    def __init__(self, out_name) -> None:
+        self.f_name = out_name
         self.con = Constant()
         # 區分bool label
         self.b_count = 1
@@ -13,7 +13,7 @@ class Code_Writer:
         # 區分label commands
         self.curr_func_name = []
         try:
-            self.out_file = open(f'./{f_name}.asm', 'w')
+            self.out_file = open(f'./{out_name}.asm', 'w')
         except:
             print('open out file fail')
 
@@ -117,11 +117,11 @@ class Code_Writer:
 
 
     def set_file_name(self, f_name: str) -> None:
-        pass
+        self.f_name = f_name
 
 
     def write_init(self) -> None:
-        pass
+        self.write_call('Sys.init', '0')
 
 
     def write_label(self, label: str) -> None:
@@ -142,7 +142,9 @@ class Code_Writer:
     def write_function(self, fn_name: str, num_vars: str) -> None:
         # for label命名時紀錄當前function name
         self.curr_func_name.append(fn_name)
-        assembly = [f'({fn_name})', '@LCL', 'M=0'] + sum([['A=A+1', 'M=0'] for i in range(int(num_vars) - 1)], [])
+        assembly = [f'({fn_name})']
+        if int(num_vars) > 0:
+            assembly += ['@LCL', 'A=M', 'M=0'] + sum([['A=A+1', 'M=0'] for i in range(int(num_vars) - 1)], [])
         self.write_to_file(assembly)
 
 
@@ -172,7 +174,7 @@ class Code_Writer:
         # 設變數retAddr=return address *(LCL-5)
         res += ['@5', 'A=D-A', 'D=M', '@retAddr', 'M=D']
         # SP pop(return value) and push to ARG 0
-        res += ['@SP', 'AM=M-1', 'D=M', '@ARG', 'A=M', 'D=M']
+        res += ['@SP', 'AM=M-1', 'D=M', '@ARG', 'A=M', 'M=D']
         # SP = ARG+1
         res += ['D=A+1', '@SP', 'M=D']
         # 回復 "THAT THIS ARG LCL"儲存address到上一層函數的值

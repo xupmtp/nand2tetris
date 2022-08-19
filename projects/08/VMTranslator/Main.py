@@ -1,4 +1,5 @@
 import sys
+import os
 from Parser import *
 from CodeWriter import *
 from Constant import *
@@ -49,23 +50,33 @@ class Main:
                 print(f'commands type {type} not found')
                 continue
             self.write.out_file.write('\n')
-        self.write.close()
 
     def main(self) -> None:
         """主程式執行函數"""
         if len(sys.argv) is not 2:
             print('Please enter correct file name')
             return
-        fname = sys.argv[1].split('.')[0]
+        f_list, arg1, path = [], sys.argv[1], ''
+
+        if arg1.endswith('.vm'):
+            f_list = [arg1]
+            path = './'
+            self.write = Code_Writer(arg1.replace('.vm', ''))
+        else:
+            f_list = list(filter(lambda f: f.endswith('.vm'), os.listdir(f'../{arg1}')))
+            path = f'../{arg1}/'
+            self.write = Code_Writer(arg1.split('/')[1])
+            self.write.write_init()
         
-        try:
-            with open(f'./{fname}.vm', 'r') as in_file:
-                self.parser = Parser(in_file.readlines())
-                self.write = Code_Writer(fname)
-                self.translator()
-                    
-        except FileNotFoundError:
-            print(f'file {sys.argv[1]} was not found')
+        for fname in f_list:
+            try:
+                with open(path + fname, 'r') as in_file:
+                    self.parser = Parser(in_file.readlines())
+                    self.write.set_file_name(fname.replace('.vm', ''))
+                    self.translator()
+            except FileNotFoundError:
+                print(f'file {path + fname} was not found')
+        self.write.close()
 
 
 if __name__ == '__main__':
