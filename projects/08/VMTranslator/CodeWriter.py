@@ -11,7 +11,7 @@ class Code_Writer:
         # 區分return label
         self.r_count = 1
         # 區分label commands
-        self.curr_func_name = []
+        self.curr_func_name = None
         try:
             self.out_file = open(f'./{out_name}.asm', 'w')
         except:
@@ -121,7 +121,12 @@ class Code_Writer:
 
 
     def write_init(self) -> None:
+        # SP init = 256
+        self.write_to_file(['@256', 'D=A', '@SP', 'M=D'])
+        self.out_file.write('\n')
+        # call Sys.init function
         self.write_call('Sys.init', '0')
+        self.out_file.write('\n')
 
 
     def write_label(self, label: str) -> None:
@@ -141,20 +146,24 @@ class Code_Writer:
 
     def write_function(self, fn_name: str, num_vars: str) -> None:
         # for label命名時紀錄當前function name
-        self.curr_func_name.append(fn_name)
+        self.curr_func_name = fn_name
+        # 建立function label
         assembly = [f'({fn_name})']
         if int(num_vars) > 0:
+            # init local=0
             assembly += ['@LCL', 'A=M', 'M=0'] + sum([['A=A+1', 'M=0'] for i in range(int(num_vars) - 1)], [])
+            # SP = LCL+num_vars
+            assembly += ['@LCL', 'D=M', f'@{num_vars}', 'D=D+A', '@SP', 'M=D']
         self.write_to_file(assembly)
 
 
     def write_call(self, fn_name: str, num_args: int) -> None:
         # save "return LCL ARG THIS THAT" address to stack
         res = [f'@{self.f_name}$ret.{self.r_count}', 'D=A', '@SP', 'A=M', 'M=D']
-        res += ['@LCL', 'D=A', '@SP', 'AM=M+1', 'M=D']
-        res += ['@ARG', 'D=A', '@SP', 'AM=M+1', 'M=D']
-        res += ['@THIS', 'D=A', '@SP', 'AM=M+1', 'M=D']
-        res += ['@THAT', 'D=A', '@SP', 'AM=M+1', 'M=D', '@SP', 'M=M+1']
+        res += ['@LCL', 'D=M', '@SP', 'AM=M+1', 'M=D']
+        res += ['@ARG', 'D=M', '@SP', 'AM=M+1', 'M=D']
+        res += ['@THIS', 'D=M', '@SP', 'AM=M+1', 'M=D']
+        res += ['@THAT', 'D=M', '@SP', 'AM=M+1', 'M=D', '@SP', 'M=M+1']
         # ARG = SP-5-num_args
         res += ['@5', 'D=A', f'@{num_args}', 'D=D+A', '@SP', 'D=M-D', '@ARG', 'M=D']
         # LCL = SP
@@ -167,23 +176,21 @@ class Code_Writer:
 
 
     def write_return(self) -> None:
-        # for label命名時紀錄當前function name
-        self.curr_func_name.pop()
         # 設變數endFrame=LCL
         res = ['@LCL', 'D=M', '@endFrame', 'M=D']
         # 設變數retAddr=return address *(LCL-5)
         res += ['@5', 'A=D-A', 'D=M', '@retAddr', 'M=D']
         # SP pop(return value) and push to ARG 0
-        res += ['@SP', 'AM=M-1', 'D=M', '@ARG', 'A=M', 'M=D']
+        res += ['@SP', 'M=M-1', 'A=M', 'D=M', '@ARG', 'A=M', 'M=D']
         # SP = ARG+1
-        res += ['D=A+1', '@SP', 'M=D']
+        res += ['@ARG', 'D=M+1', '@SP', 'M=D']
         # 回復 "THAT THIS ARG LCL"儲存address到上一層函數的值
-        res += ['@endFrame', 'AM=M-1', 'D=M', '@THAT', 'M=D']
-        res += ['@endFrame', 'AM=M-1', 'D=M', '@THIS', 'M=D']
-        res += ['@endFrame', 'AM=M-1', 'D=M', '@ARG', 'M=D']
-        res += ['@endFrame', 'AM=M-1', 'D=M', '@LCL', 'M=D']
+        res += ['@endFrame', 'M=M-1', 'A=M', 'D=M', '@THAT', 'M=D']
+        res += ['@endFrame', 'M=M-1', 'A=M', 'D=M', '@THIS', 'M=D']
+        res += ['@endFrame', 'M=M-1', 'A=M', 'D=M', '@ARG', 'M=D']
+        res += ['@endFrame', 'M=M-1', 'A=M', 'D=M', '@LCL', 'M=D']
         # jump to return label address
-        res += ['@retAddr', 'A=D', '0;JMP']
+        res += ['@retAddr', 'A=M', '0;JMP']
 
         self.write_to_file(res)
 
@@ -194,8 +201,8 @@ class Code_Writer:
 
     def _get_curr_fn(self, label):
         # 若label在function內定義 需命名為"f_name:label"，便於區分不同function中相同名稱的label
-        if len(self.curr_func_name) > 0:
-            return f'{self.curr_func_name[-1]}:{label}'
+        if self.curr_func_name is not None:
+            return f'{self.curr_func_name}:{label}'
         return label
 
 
