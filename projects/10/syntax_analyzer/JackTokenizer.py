@@ -1,36 +1,77 @@
+from curses.ascii import isdigit
+from Constant import *
+import re
+
+
 class JackTokenizer:
     def __init__(self, input_stream) -> None:
-        pass
+        self.file = input_stream
+        # 當前token
+        self.token = None
+        self.cur_idx = 0
 
 
-    def hasMoreTokens() -> bool:
-        pass
+    def hasMoreTokens(self) -> bool:
+        return len(self.file) > self.cur_idx + 1
 
 
-    def advance() -> None:
-        pass
+    def advance(self) -> None:
+        i = self.cur_idx
+
+        while self.file[i] == ' ':
+            i += 1
+        self.cur_idx = i
+        
+        # symbol
+        if self.file[i] in symbol:
+            self.token = self.file[i]
+            self.cur_idx += 1
+            return
+
+        #string
+        if self.file[i] == '"':
+            i += 1
+            while self.file[i] != '"':
+                i += 1
+            i += 1
+        else:
+            # keyword, int string Constant, identifier
+            while self.file[i] != ' ' and self.file[i] not in symbol:
+                i += 1
+        # 最後一個字符正常是 '}' symbol 所以不必擔心index out
+        self.token = self.file[self.cur_idx: i]
+        self.cur_idx = i
 
 
-    def tokenType() -> str:
-        pass
+    def tokenType(self) -> str:
+        if self.token in keyword:
+            return tokenType['keyword']
+        elif self.token in symbol:
+            return tokenType['symbol']
+        elif self.token.isdigit():
+            return tokenType['intConst']
+        elif re.search('^".*"$', self.token) != None:
+            return tokenType['strConst']
+        else:
+            return tokenType['identifier']
 
 
-    def keyWord() -> str:
-        pass
+    def keyWord(self) -> str:
+        return keyword[self.token]
 
 
-    def symbol() -> str:
-        pass
+    def symbol(self) -> str:
+        return symbol[self.token]
 
 
-    def identifier() -> str:
-        pass
+    def identifier(self) -> str:
+        return self.token
 
 
-    def intVal() -> int:
-        pass
+    def intVal(self) -> int:
+        return int(self.token)
 
 
-    def stringVal() -> str:
-        pass
+    def stringVal(self) -> str:
+        return self.token
     

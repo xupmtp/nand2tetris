@@ -1,11 +1,13 @@
 import sys
 import os
 import re
+from Constant import *
+from JackTokenizer import *
 
 
 class JackAnalyzer:
     def __init__(self) -> None:
-        pass
+        self.tokenizer = None
 
 
     def main(self):
@@ -26,32 +28,43 @@ class JackAnalyzer:
         for f_name in f_list:
             try:
                 with open(path + f_name, 'r') as file:
-                    print(file.readlines())
+                    self.tokenizer = JackTokenizer(self._file_filter(file.readlines()))
+                    while self.tokenizer.hasMoreTokens():
+                        self.tokenizer.advance()
+                        print(self.tokenizer.token)
             except FileNotFoundError:
                 print(f'file {path + f_name} was not found')
 
 
-    # 刪除註解&空白行
-    def _remove_empty_and_annotation(self, file):
-        flag = True
-        def f_filter(f):
-            nonlocal flag
-            se = re.search("(/\*\*|/{2})+", f)
+    # 刪除註解&空白行 換行符轉空格
+    def _file_filter(self, file):
+        res = []
+        flag = False
+        for f in file:
+            f = f.strip()
+            if flag or not f:
+                if '*/' in f:
+                    flag = False
+                continue
+
+            se = re.search("(/\*|/{2})+", f)
             if se == None:
-                return True
+                res.append(f)
+                continue
+
             gp = se.group()
-
-            sp = f.split('//')
-            return flag and len(sp[0].strip()) > 0
+            if gp == '//' and not f.startswith('//'):
+                res.append(f.split('//')[0].strip())
+            elif gp == '/*':
+                if '*/' in f:
+                    f = re.sub('/\*.*\*/', '', f)
+                    if len(f) > 0:
+                        res.append(f)
+                else:
+                    flag = True        
+                
+        return ' '.join(res)
         
-
-        def f_map(f):
-            sp = f.split('//')
-            return sp[0].strip()
-
-        
-        return list(map(f_map, filter(f_filter, file)))
-
 
 if __name__ == '__main__':
     JackAnalyzer().main()
