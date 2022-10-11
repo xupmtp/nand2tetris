@@ -57,21 +57,21 @@ class JackTokenizer:
 
 
     def keyWord(self) -> str:
-        return keyword[self.token]
+        return f"<keyword> {keyword[self.token]} </keyword>"
 
 
     def symbol(self) -> str:
-        return symbol[self.token]
+        return f"<symbol> {symbol[self.token]} </symbol>"
 
 
     def identifier(self) -> str:
-        return self.token
+        return f"<identifier> {self.token} </idenetifier>"
 
 
     def intVal(self) -> int:
-        return int(self.token)
+        return f"<integerConstant> {self.token} </integerConstant>"
 
 
     def stringVal(self) -> str:
-        return self.token
+        return f"<stringConstant> {self.token.replace('\"', '')} </stringConstant>"
     
