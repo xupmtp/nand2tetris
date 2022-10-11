@@ -1,4 +1,3 @@
-from curses.ascii import isdigit
 from Constant import *
 import re
 
@@ -57,21 +56,22 @@ class JackTokenizer:
 
 
     def keyWord(self) -> str:
-        return f"<keyword> {keyword[self.token]} </keyword>"
+        return keyword[self.token]
 
 
     def symbol(self) -> str:
-        return f"<symbol> {symbol[self.token]} </symbol>"
+        return symbol[self.token]
 
 
     def identifier(self) -> str:
-        return f"<identifier> {self.token} </idenetifier>"
+        return self.token
 
 
-    def intVal(self) -> int:
-        return f"<integerConstant> {self.token} </integerConstant>"
+    def intVal(self) -> str:
+        return self.token
 
 
     def stringVal(self) -> str:
-        return f"<stringConstant> {self.token.replace('\"', '')} </stringConstant>"
+        return self.token
+    
     

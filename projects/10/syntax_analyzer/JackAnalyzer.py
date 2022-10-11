@@ -2,12 +2,12 @@ import sys
 import os
 import re
 from Constant import *
-from JackTokenizer import *
+from CompilationEngine import *
 
 
 class JackAnalyzer:
     def __init__(self) -> None:
-        self.tokenizer = None
+        self.complier = None
 
 
     def main(self):
@@ -26,12 +26,16 @@ class JackAnalyzer:
 
         # 讀取每筆檔案
         for f_name in f_list:
+            f_name = f_name.replace('.jack', '')
             try:
-                with open(path + f_name, 'r') as file:
-                    self.tokenizer = JackTokenizer(self._file_filter(file.readlines()))
-                    while self.tokenizer.hasMoreTokens():
-                        self.tokenizer.advance()
-                        print(self.tokenizer.token)
+                with open(f"{path + f_name}.jack", 'r') as r_file, open(f"{path + f_name}.xml", 'w') as w_file:
+                    self.complier = CompilationEngine(self._file_filter(r_file.readlines()), w_file)
+                    if self.complier.next():
+                        if (self.complier.tokenizer.tokenType() is tokenType['keyword'] 
+                                and self.complier.tokenizer.keyWord() == keyword['class']):
+                            self.complier.CompileClass()
+                        else:
+                            print('class keyword not found')
             except FileNotFoundError:
                 print(f'file {path + f_name} was not found')
 
