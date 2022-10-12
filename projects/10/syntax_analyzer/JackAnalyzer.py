@@ -30,12 +30,7 @@ class JackAnalyzer:
             try:
                 with open(f"{path + f_name}.jack", 'r') as r_file, open(f"{path + f_name}.xml", 'w') as w_file:
                     self.complier = CompilationEngine(self._file_filter(r_file.readlines()), w_file)
-                    if self.complier.next():
-                        if (self.complier.tokenizer.tokenType() is tokenType['keyword'] 
-                                and self.complier.tokenizer.keyWord() == keyword['class']):
-                            self.complier.CompileClass()
-                        else:
-                            print('class keyword not found')
+                    self.complier.CompileClass()
             except FileNotFoundError:
                 print(f'file {path + f_name} was not found')
 
