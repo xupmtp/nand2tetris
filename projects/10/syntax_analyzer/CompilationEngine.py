@@ -158,9 +158,12 @@ class CompilationEngine:
         self.out.write(self._getTabStr(tab_size) + '<statements>\n')
         tab_size += 1
         first = True
-        # 第一次進來已有token
-        while first or self.tokenizer.next():
-            first = False
+        while first or self.tokenizer.checkNext() in ['let', 'do', 'if', 'while', 'return']:
+            # 第一次進來已有token
+            if first:
+                first = False
+            else:
+                self.tokenizer.next()
             if self.tokenizer.checkKeyword('let'):
                 self.compileLet(tab_size)
             elif self.tokenizer.checkKeyword('if'):
@@ -203,7 +206,8 @@ class CompilationEngine:
         # varName
         if self._tokenParse('identifier', tab_size):
             raise TokenizerExcept('compileLet varName not found')
-
+        
+        self.tokenizer.next()
         # ('[' expression ']')?
         if self.tokenizer.checkSymbol('['):
             self.writeTerminalsXML(tab_size)
@@ -213,7 +217,6 @@ class CompilationEngine:
                 raise TokenizerExcept('compileLet "]" not found')
             else:
                 self.tokenizer.next()
-                
         
         # '='
         if self.tokenizer.checkSymbol('='):
@@ -274,9 +277,12 @@ class CompilationEngine:
         self.tokenizer.next()
         if not self.tokenizer.checkSymbol(';'):
             self.CompileExpression(tab_size)
+            self.tokenizer.next()
 
         # ';'
-        if self._tokenParse('symbol', tab_size, ';'):
+        if self.tokenizer.checkSymbol(';'):
+            self.writeTerminalsXML(tab_size)
+        else:
             raise TokenizerExcept('compileReturn ";" not found')
 
         self.out.write(self._getTabStr(tab_size - 1) + '</returnStatement>\n')
@@ -354,9 +360,56 @@ class CompilationEngine:
         """ integerConstant | stringConstant | keywordConstant 
         | varName | varName '[' expression ']' | subroutineCall 
         | '(' expression ')' | unaryOp(~,-) term """
-        pass
+        def processSymbol():
+            if self.tokenizer.checkSymbol('('):
+                self.writeTerminalsXML(tab_size)
+                self.tokenizer.next()
+                self.CompileExpression(tab_size)
+                if self._tokenParse('symbol', tab_size, ')'):
+                    raise TokenizerExcept('CompileTerm ) not found')
+            elif self.tokenizer.symbol() in [symbol['~'], symbol['-']]:
+                self.writeTerminalsXML(tab_size)
+                self.tokenizer.next()
+                self.CompileTerm(tab_size)
+            else:
+                raise TokenizerExcept('CompileTerm processSymbol error')
 
-    
+        def processIdentifier():
+            # 三種模式開頭都是identifier, 要再往前一步(LL(1))才知道如何處理
+            next_token = self.tokenizer.checkNext()
+            # varName '[' expression ']'
+            if next_token == symbol['[']:
+                self.writeTerminalsXML(tab_size)
+                if self._tokenParse('symbol', tab_size, '['):
+                    raise TokenizerExcept('CompileTerm [ not found')
+                self.tokenizer.next()
+                self.CompileExpression(tab_size)
+                if self._tokenParse('symbol', tab_size, ']'):
+                    raise TokenizerExcept('CoimpileTerm ] not found')
+            # subroutineCall
+            elif next_token in [symbol['('], symbol['.']]:
+                self._ComplieSubroutineCall(tab_size)
+            # varName
+            else:
+                self.writeTerminalsXML(tab_size)
+
+
+        self.out.write(self._getTabStr(tab_size) + '<term>\n')
+        tab_size += 1
+        const = [tokenType['keyword'], tokenType['intConst'], tokenType['strConst']]
+        # integerConstant, stringConstant, keywordConstant 
+        if self.tokenizer.tokenType() in const:
+            self.writeTerminalsXML(tab_size)
+        elif self.tokenizer.checkTokenType('symbol'):
+            processSymbol()
+        elif self.tokenizer.checkTokenType('identifier'):
+            processIdentifier()
+        else:
+            raise TokenizerExcept('CompileTerm type error')
+
+        self.out.write(self._getTabStr(tab_size - 1) + '<term>\n')
+
+
     def CompileExpressionList(self, tab_size) -> None:
         """ (expression (',' expression)* )? """
         self.out.write(self._getTabStr(tab_size) + '<expressionList>\n')
@@ -382,44 +435,32 @@ class CompilationEngine:
 
 
     def _ComplieSubroutineCall(self, tab_size) -> None:
-        """subroutineName '(' expressionList ')' | ( className | varName) '.' subroutineName '(' expressionList ')'
+        """(subroutineName '(' expressionList ')' ) | ( ( className | varName) '.' subroutineName '(' expressionList ')' )
             非規定子結構, 前後不須用<xxx></xxx>包覆"""
-        tab_size += 1
+        def process_expressionList():
+            self.writeTerminalsXML(tab_size)
+            # ExpressionList可能為0, 故進入後再next()
+            self.CompileExpressionList(tab_size)
+            # ')'
+            if self._tokenParse('symbol', tab_size, symbol[')']):
+                raise TokenizerExcept('SubroutineCall ) not found')
+
+        # 沒有到下一層tab_size不須+1
         self.writeTerminalsXML(tab_size)
 
         # '('
-        if self._tokenParse('symbol', tab_size, symbol['(']):
-            raise  TokenizerExcept('SubroutineCall ( not found')
-
-        # ExpressionList可能為0, 故進入後再next()
-        self.CompileExpressionList(tab_size)
-
-        # ')'
-        if self._tokenParse('symbol', tab_size, symbol[')']):
-            raise TokenizerExcept('SubroutineCall ) not found')
-       
-        # ( className | varName )
-        if self._tokenParse('identifier', tab_size):
-            raise TokenizerExcept('SubroutineCall className|varName not found')
-
-        # '.'
-        if self._tokenParse('symbol', tab_size, symbol['.']):
-            raise TokenizerExcept('SubroutineCall . not found')
-
-        # subroutineName
-        if self._tokenParse('identifier', tab_size):
-            raise TokenizerExcept('SubroutineCall subroutineName not found')
-
-        # '('
-        if self._tokenParse('symbol', tab_size, symbol['(']):
-            raise  TokenizerExcept('SubroutineCall ( not found')
-
-        # ExpressionList可能為0, 故進入後再next()
-        self.CompileExpressionList(tab_size)
-
-        # ')'
-        if self._tokenParse('symbol', tab_size, symbol[')']):
-            raise TokenizerExcept('SubroutineCall ) not found')
+        self.tokenizer.next()
+        if self.tokenizer.checkSymbol('('):
+            process_expressionList()
+        elif self.tokenizer.checkSymbol('.'):
+            self.writeTerminalsXML(tab_size)
+            # subroutineName
+            if self._tokenParse('identifier', tab_size):
+                raise TokenizerExcept('SubroutineCall subroutineName not found')
+            self.tokenizer.next()
+            process_expressionList()
+        else:
+            raise TokenizerExcept('SubroutineCall (|. not found')
 
  
     def writeTerminalsXML(self, tab_size) -> str:
