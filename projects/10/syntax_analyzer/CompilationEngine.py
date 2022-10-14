@@ -55,7 +55,7 @@ class CompilationEngine:
         else:
             raise TokenizerExcept('class symbol "}" not found')
 
-        self.out.write('</class>')
+        self.out.write('</class>\n')
 
     
     def CompileClassVarDec(self, tab_size) -> None:
@@ -86,30 +86,40 @@ class CompilationEngine:
 
         # parameterList
         self.compileParameterList(tab_size)
+
         # 不管compileParameterList()有沒有值, 下個token必為 ')'
         if self._tokenParse('symbol', tab_size, ')'):
             raise TokenizerExcept('Subroutine ")" not found')
-
-        """subroutineBody"""
-        # '{'
-        if self._tokenParse('symbol', tab_size, '{'):
-            raise TokenizerExcept('Subroutine "{" not found')
         
-        while self.tokenizer.next():
-            if self.tokenizer.checkKeyword(keyword['var']):
-                self.compileVarDec(tab_size)
-            elif self.tokenizer.isStatment():
-                self.compileStatements(tab_size)
-            else:
-                break
-        
-        # '}'
-        if self.tokenizer.checkSymbol('}'):
-            self.writeTerminalsXML(tab_size)
+        self.tokenizer.next()
+        if self.tokenizer.checkSymbol('{'):
+            self.ComplieSubroutineBody(tab_size)
         else:
-            raise TokenizerExcept('Subroutine "}" not found')
+            raise TokenizerExcept('Subroutine "{" not found')
 
         self.out.write(self._getTabStr(tab_size - 1) + '</subroutineDec>\n')
+
+
+    def ComplieSubroutineBody(self, tab_size):
+        """ '{' varDec* statements '}' """
+        self.out.write(self._getTabStr(tab_size) + '<subroutineBody>\n')
+        tab_size += 1
+        self.writeTerminalsXML(tab_size)
+        
+        # varDec*
+        while self.tokenizer.checkNext() == keyword['var']:
+            self.tokenizer.next()
+            self.compileVarDec(tab_size)
+
+        # statements
+        if self.tokenizer.checkNext() in ['let', 'do', 'if', 'while', 'return']:
+            self.compileStatements(tab_size)
+
+        # '}'
+        if self._tokenParse('symbol', tab_size, '}'):
+            raise TokenizerExcept('Subroutine "}" not found')
+
+        self.out.write(self._getTabStr(tab_size - 1) + '</subroutineBody>\n')
 
     
     def compileParameterList(self, tab_size) -> None:
@@ -154,16 +164,14 @@ class CompilationEngine:
 
     
     def compileStatements(self, tab_size) -> None:
-        """ letStatement | ifStatement | whileStatement | doStatement | returnStatement """
+        """ ( letStatement | ifStatement | whileStatement | doStatement | returnStatement )* """
         self.out.write(self._getTabStr(tab_size) + '<statements>\n')
         tab_size += 1
-        first = True
-        while first or self.tokenizer.checkNext() in ['let', 'do', 'if', 'while', 'return']:
+
+        # Statements可能為空 所以用checkNext
+        while self.tokenizer.checkNext() in ['let', 'do', 'if', 'while', 'return']:
             # 第一次進來已有token
-            if first:
-                first = False
-            else:
-                self.tokenizer.next()
+            self.tokenizer.next()
             if self.tokenizer.checkKeyword('let'):
                 self.compileLet(tab_size)
             elif self.tokenizer.checkKeyword('if'):
@@ -232,7 +240,7 @@ class CompilationEngine:
         if self._tokenParse('symbol', tab_size, ';'):
             raise TokenizerExcept('compileLet ";" not found')
             
-        self.out.write(self._getTabStr(tab_size) + '</letStatement>\n')
+        self.out.write(self._getTabStr(tab_size - 1) + '</letStatement>\n')
 
     
     def compileWhile(self, tab_size) -> None:
@@ -257,7 +265,6 @@ class CompilationEngine:
             raise TokenizerExcept('compileWhile "{" not found')
         
         # statements
-        self.tokenizer.next()
         self.compileStatements(tab_size)
 
         # '}'
@@ -310,7 +317,6 @@ class CompilationEngine:
             raise TokenizerExcept('compileIf if "{" not found')
         
         # statements
-        self.tokenizer.next()
         self.compileStatements(tab_size)
 
         # '}'
@@ -327,7 +333,6 @@ class CompilationEngine:
                 raise TokenizerExcept('compileIf else "{" not found')
             
             # statements
-            self.tokenizer.next()
             self.compileStatements(tab_size)
 
             # '}'
@@ -353,7 +358,7 @@ class CompilationEngine:
             self.tokenizer.next()
             self.CompileTerm(tab_size)
         
-        self.out.write(self._getTabStr(tab_size - 1) + '<expression>\n')
+        self.out.write(self._getTabStr(tab_size - 1) + '</expression>\n')
 
     
     def CompileTerm(self, tab_size) -> None:
@@ -407,7 +412,7 @@ class CompilationEngine:
         else:
             raise TokenizerExcept('CompileTerm type error')
 
-        self.out.write(self._getTabStr(tab_size - 1) + '<term>\n')
+        self.out.write(self._getTabStr(tab_size - 1) + '</term>\n')
 
 
     def CompileExpressionList(self, tab_size) -> None:

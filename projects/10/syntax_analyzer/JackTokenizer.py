@@ -54,6 +54,12 @@ class JackTokenizer:
 
 
     def symbol(self) -> str:
+        if self.token == symbol['<']:
+            return '&lt;'
+        elif self.token == symbol['>']:
+            return '&gt;'
+        elif self.token == symbol['&']:
+            return '&amp;'
         return symbol[self.token]
 
 
@@ -66,7 +72,7 @@ class JackTokenizer:
 
 
     def stringVal(self) -> str:
-        return self.token
+        return self.token.replace('"', '')
 
 
     # 只處理不實際前進
@@ -104,7 +110,7 @@ class JackTokenizer:
 
 
     def isType(self) -> bool:
-        return self.checkKeyword(['int', 'char', 'boolean', 'void'])
+        return self.checkKeyword(['int', 'char', 'boolean', 'void']) or self.checkTokenType('identifier')
 
     
     def isOp(self, token=None) -> bool:
@@ -115,10 +121,10 @@ class JackTokenizer:
 
     
     def checkKeyword(self, words):
-        return self.checkTokenType('keyword') and self.keyWord() in words
+        return self.checkTokenType('keyword') and self.token in words
     
 
     def checkSymbol(self, symbols):
-        return self.checkTokenType('symbol') and self.symbol() in symbols
+        return self.checkTokenType('symbol') and self.token in symbols
         
     

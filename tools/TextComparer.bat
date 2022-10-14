@@ -2,6 +2,8 @@
 
 rem  $Id: TextComparer.bat,v 1.2 2014/05/10 00:52:43 marka Exp $
 rem  mark.armbrust@pobox.com
+rem 用法 要比較的檔案 A.xml,B.xml 放置到tool/目錄
+rem cmd $ TextComparer.bat A.xml B.xml
 
 setlocal
 if not "%3"=="" goto :USAGE
