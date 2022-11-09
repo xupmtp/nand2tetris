@@ -51,3 +51,8 @@ tokenType = {
     'strConst': 'stringConstant',
     'identifier': 'identifier'
 }
+
+IDT_STATIC = 'static'
+IDT_FIELD = 'field'
+IDT_ARG = 'arg'
+IDT_VAR = 'var'
