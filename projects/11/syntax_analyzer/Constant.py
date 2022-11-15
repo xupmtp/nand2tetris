@@ -52,7 +52,29 @@ tokenType = {
     'identifier': 'identifier'
 }
 
+# Jack variable type
 IDT_STATIC = 'static'
 IDT_FIELD = 'field'
 IDT_ARG = 'arg'
 IDT_VAR = 'var'
+
+# memory segment
+CONST = 'constant'
+ARG = 'argument'
+LOCAL = 'local'
+STATIC = 'static'
+THIS = 'this'
+THAT = 'that'
+POINTER = 'pointer'
+TEMP = 'temp'
+
+# Arithmetic cmd
+ADD = 'add'
+SUB = 'sub'
+NEG = 'neg'
+EQ = 'eq'
+GT = 'gt'
+LT = 'lt'
+AND = 'and'
+OR = 'or'
+NOT = 'not'
