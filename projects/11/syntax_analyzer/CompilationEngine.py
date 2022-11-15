@@ -1,7 +1,7 @@
-from re import T
-from xmlrpc.client import boolean
 from JackTokenizer import *
 from TokenizerExcept import *
+from SymbolTable import *
+from VMWriter import *
 
 
 class CompilationEngine:
@@ -16,11 +16,13 @@ class CompilationEngine:
     CompileExpression()
     compileIf()
     """
+
     def __init__(self, in_stream, out_stream) -> None:
         self.tokenizer = JackTokenizer(in_stream)
+        self.table = SymbolTable()
         self.out = out_stream
+        self.writer = VMWriter(out_stream)
 
-    
     def CompileClass(self) -> None:
         """ 'class' className '{' classVarDec* subroutineDec* '}' """
 
@@ -41,7 +43,6 @@ class CompilationEngine:
         if self._tokenParse('symbol', tab_size, '{'):
             raise TokenizerExcept('class symbol \"{\" not found')
 
-        
         while self.tokenizer.next() and self.tokenizer.checkTokenType('keyword'):
             k = self.tokenizer.keyWord()
             if k in ['static', 'field']:
@@ -57,12 +58,10 @@ class CompilationEngine:
 
         self.out.write('</class>\n')
 
-    
     def CompileClassVarDec(self, tab_size) -> None:
         """ ('static' | 'field' ) type varName (',' varName)* ';' """
         self._processVarName(tab_size, 'classVarDec')
 
-    
     def CompileSubroutine(self, tab_size) -> None:
         """ ('constructor' | 'function' | 'method') ('void' | type) subroutineName '(' parameterList ')' subroutineBody """
         self.out.write(self._getTabStr(tab_size) + '<subroutineDec>\n')
@@ -75,11 +74,11 @@ class CompilationEngine:
             self.writeTerminalsXML(tab_size)
         else:
             raise TokenizerExcept('Subroutine type not found')
-        
+
         # subroutineName
         if self._tokenParse('identifier', tab_size):
             raise TokenizerExcept('Subroutine subroutineName not found')
-        
+
         # '('
         if self._tokenParse('symbol', tab_size, '('):
             raise TokenizerExcept('Subroutine "(" not found')
@@ -90,7 +89,7 @@ class CompilationEngine:
         # 不管compileParameterList()有沒有值, 下個token必為 ')'
         if self._tokenParse('symbol', tab_size, ')'):
             raise TokenizerExcept('Subroutine ")" not found')
-        
+
         self.tokenizer.next()
         if self.tokenizer.checkSymbol('{'):
             self.ComplieSubroutineBody(tab_size)
@@ -99,13 +98,12 @@ class CompilationEngine:
 
         self.out.write(self._getTabStr(tab_size - 1) + '</subroutineDec>\n')
 
-
     def ComplieSubroutineBody(self, tab_size):
         """ '{' varDec* statements '}' """
         self.out.write(self._getTabStr(tab_size) + '<subroutineBody>\n')
         tab_size += 1
         self.writeTerminalsXML(tab_size)
-        
+
         # varDec*
         while self.tokenizer.checkNext() == keyword['var']:
             self.tokenizer.next()
@@ -121,7 +119,6 @@ class CompilationEngine:
 
         self.out.write(self._getTabStr(tab_size - 1) + '</subroutineBody>\n')
 
-    
     def compileParameterList(self, tab_size) -> None:
         """ ((type varName) (',' type varName)*)? """
         self.out.write(self._getTabStr(tab_size) + '<parameterList>\n')
@@ -156,13 +153,11 @@ class CompilationEngine:
                 raise TokenizerExcept('ParameterList varName not found')
 
         self.out.write(self._getTabStr(tab_size - 1) + '</parameterList>\n')
-        
-    
+
     def compileVarDec(self, tab_size) -> None:
         """  'var' type varName (',' varName)* ';' """
         self._processVarName(tab_size, 'varDec')
 
-    
     def compileStatements(self, tab_size) -> None:
         """ ( letStatement | ifStatement | whileStatement | doStatement | returnStatement )* """
         self.out.write(self._getTabStr(tab_size) + '<statements>\n')
@@ -187,7 +182,6 @@ class CompilationEngine:
 
         self.out.write(self._getTabStr(tab_size - 1) + '</statements>\n')
 
-    
     def compileDo(self, tab_size) -> None:
         """ 'do' subroutineCall ';' """
         self.out.write(self._getTabStr(tab_size) + '<doStatement>\n')
@@ -198,13 +192,12 @@ class CompilationEngine:
             self._ComplieSubroutineCall(tab_size)
         else:
             raise TokenizerExcept('compileDo subroutineCall not found')
-        
+
         if self._tokenParse('symbol', tab_size, ';'):
             raise TokenizerExcept('compileDo ";" not found')
 
         self.out.write(self._getTabStr(tab_size - 1) + '</doStatement>\n')
 
-    
     def compileLet(self, tab_size) -> None:
         """ 'let' varName ('[' expression ']')? '=' expression ';' """
         self.out.write(self._getTabStr(tab_size) + '<letStatement>\n')
@@ -214,7 +207,7 @@ class CompilationEngine:
         # varName
         if self._tokenParse('identifier', tab_size):
             raise TokenizerExcept('compileLet varName not found')
-        
+
         self.tokenizer.next()
         # ('[' expression ']')?
         if self.tokenizer.checkSymbol('['):
@@ -225,7 +218,7 @@ class CompilationEngine:
                 raise TokenizerExcept('compileLet "]" not found')
             else:
                 self.tokenizer.next()
-        
+
         # '='
         if self.tokenizer.checkSymbol('='):
             self.writeTerminalsXML(tab_size)
@@ -239,10 +232,9 @@ class CompilationEngine:
         # ';'
         if self._tokenParse('symbol', tab_size, ';'):
             raise TokenizerExcept('compileLet ";" not found')
-            
+
         self.out.write(self._getTabStr(tab_size - 1) + '</letStatement>\n')
 
-    
     def compileWhile(self, tab_size) -> None:
         """ 'while' '(' expression ')' '{' statements '}' """
         self.out.write(self._getTabStr(tab_size) + '<whileStatement>\n')
@@ -251,7 +243,7 @@ class CompilationEngine:
         # '('
         if self._tokenParse('symbol', tab_size, '('):
             raise TokenizerExcept('compileWhile "(" not found')
-        
+
         # expression
         self.tokenizer.next()
         self.CompileExpression(tab_size)
@@ -263,7 +255,7 @@ class CompilationEngine:
         # '{'
         if self._tokenParse('symbol', tab_size, '{'):
             raise TokenizerExcept('compileWhile "{" not found')
-        
+
         # statements
         self.compileStatements(tab_size)
 
@@ -273,7 +265,6 @@ class CompilationEngine:
 
         self.out.write(self._getTabStr(tab_size - 1) + '</whileStatement>\n')
 
-    
     def compileReturn(self, tab_size) -> None:
         """ 'return' expression? ';’ """
         self.out.write(self._getTabStr(tab_size) + '<returnStatement>\n')
@@ -294,7 +285,6 @@ class CompilationEngine:
 
         self.out.write(self._getTabStr(tab_size - 1) + '</returnStatement>\n')
 
-    
     def compileIf(self, tab_size) -> None:
         """ 'if' '(' expression ')' '{' statements '}' ( 'else' '{' statements '}' )? """
         self.out.write(self._getTabStr(tab_size) + '<ifStatement>\n')
@@ -303,7 +293,7 @@ class CompilationEngine:
 
         if self._tokenParse('symbol', tab_size, '('):
             raise TokenizerExcept('compileIf "(" not found')
-        
+
         # expression
         self.tokenizer.next()
         self.CompileExpression(tab_size)
@@ -315,7 +305,7 @@ class CompilationEngine:
         # '{'
         if self._tokenParse('symbol', tab_size, '{'):
             raise TokenizerExcept('compileIf if "{" not found')
-        
+
         # statements
         self.compileStatements(tab_size)
 
@@ -331,17 +321,16 @@ class CompilationEngine:
             # '{'
             if self._tokenParse('symbol', tab_size, '{'):
                 raise TokenizerExcept('compileIf else "{" not found')
-            
+
             # statements
             self.compileStatements(tab_size)
 
             # '}'
             if self._tokenParse('symbol', tab_size, '}'):
                 raise TokenizerExcept('compileIf else "}" not found')
-            
+
         self.out.write(self._getTabStr(tab_size - 1) + '</ifStatement>\n')
 
-    
     def CompileExpression(self, tab_size) -> None:
         """ term (op term)* """
         self.out.write(self._getTabStr(tab_size) + '<expression>\n')
@@ -357,14 +346,14 @@ class CompilationEngine:
             # term
             self.tokenizer.next()
             self.CompileTerm(tab_size)
-        
+
         self.out.write(self._getTabStr(tab_size - 1) + '</expression>\n')
 
-    
     def CompileTerm(self, tab_size) -> None:
         """ integerConstant | stringConstant | keywordConstant 
         | varName | varName '[' expression ']' | subroutineCall 
         | '(' expression ')' | unaryOp(~,-) term """
+
         def processSymbol():
             if self.tokenizer.checkSymbol('('):
                 self.writeTerminalsXML(tab_size)
@@ -398,7 +387,6 @@ class CompilationEngine:
             else:
                 self.writeTerminalsXML(tab_size)
 
-
         self.out.write(self._getTabStr(tab_size) + '<term>\n')
         tab_size += 1
         const = [tokenType['keyword'], tokenType['intConst'], tokenType['strConst']]
@@ -413,7 +401,6 @@ class CompilationEngine:
             raise TokenizerExcept('CompileTerm type error')
 
         self.out.write(self._getTabStr(tab_size - 1) + '</term>\n')
-
 
     def CompileExpressionList(self, tab_size) -> None:
         """ (expression (',' expression)* )? """
@@ -438,10 +425,10 @@ class CompilationEngine:
 
         self.out.write(self._getTabStr(tab_size - 1) + '</expressionList>\n')
 
-
     def _ComplieSubroutineCall(self, tab_size) -> None:
         """(subroutineName '(' expressionList ')' ) | ( ( className | varName) '.' subroutineName '(' expressionList ')' )
             非規定子結構, 前後不須用<xxx></xxx>包覆"""
+
         def process_expressionList():
             self.writeTerminalsXML(tab_size)
             # ExpressionList可能為0, 故進入後再next()
@@ -467,8 +454,7 @@ class CompilationEngine:
         else:
             raise TokenizerExcept('SubroutineCall (|. not found')
 
- 
-    def writeTerminalsXML(self, tab_size) -> str:
+    def writeTerminalsXML(self, tab_size) -> None:
         self.out.write(self._getTabStr(tab_size))
         if self.tokenizer.tokenType() == tokenType['keyword']:
             self.out.write(f'<keyword> {self.tokenizer.keyWord()} </keyword>')
@@ -484,21 +470,18 @@ class CompilationEngine:
             print('getTerminalsXML error')
         self.out.write('\n')
 
-
     def _getTabStr(self, tab_size) -> str:
         return '  ' * tab_size
 
-    
     # 拉出處理token程式return True表示失敗，需丟except
     def _tokenParse(self, type, tab_size, checkVal='') -> bool:
         self.tokenizer.next()
         if (type == 'keyword' and self.tokenizer.checkTokenType(type)
-                or type == 'symbol' and self.tokenizer.checkSymbol(symbol[checkVal]) 
+                or type == 'symbol' and self.tokenizer.checkSymbol(symbol[checkVal])
                 or type == 'identifier' and self.tokenizer.checkTokenType(type)):
             self.writeTerminalsXML(tab_size)
             return False
         return True
-
 
     def _processVarName(self, tab_size, tagName):
         self.out.write(f'{self._getTabStr(tab_size)}<{tagName}>\n')
