@@ -22,6 +22,20 @@ keyword = {
     'return': 'return'
 }
 
+operation = {
+    '+': 'add',
+    'b-': 'sub',
+    'u-': 'neg',
+    '>': 'gt',
+    '<': 'lt',
+    '&': 'and',
+    '|': 'or',
+    '~': 'not',
+    '=': 'eq',
+    '*': 'call Math.multiply 2',
+    '/': 'call Math.divide 2'
+}
+
 symbol = {
     '{': '{',
     '}': '}',
@@ -58,23 +72,22 @@ IDT_FIELD = 'field'
 IDT_ARG = 'arg'
 IDT_VAR = 'var'
 
-# memory segment
-CONST = 'constant'
-ARG = 'argument'
-LOCAL = 'local'
-STATIC = 'static'
-THIS = 'this'
-THAT = 'that'
-POINTER = 'pointer'
-TEMP = 'temp'
-
-# Arithmetic cmd
-ADD = 'add'
-SUB = 'sub'
-NEG = 'neg'
-EQ = 'eq'
-GT = 'gt'
-LT = 'lt'
-AND = 'and'
-OR = 'or'
-NOT = 'not'
+# VM CODE segment
+VM_CONST = 'constant'
+VM_ARG = 'argument'
+VM_LOCAL = 'local'
+VM_STATIC = 'static'
+VM_THIS = 'this'
+VM_THAT = 'that'
+VM_POINTER = 'pointer'
+VM_TEMP = 'temp'
+# VM Arithmetic
+VM_ADD = 'add'
+VM_SUB = 'sub'
+VM_NEG = 'neg'
+VM_GT = 'gt'
+VM_LT = 'lt'
+VM_AND = 'and'
+VM_OR = 'or'
+VM_NOT = 'not'
+VM_EQ = 'eq'
