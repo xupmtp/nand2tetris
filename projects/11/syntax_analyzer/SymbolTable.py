@@ -32,7 +32,7 @@ class SymbolTable:
     def kindOf(self, name) -> str:
         jack_to_vm = {IDT_STATIC: VM_STATIC, IDT_FIELD: VM_THIS, IDT_VAR: VM_LOCAL, IDT_ARG: VM_ARG}
         kind = self._getTableByName(name, 'kind')
-        return jack_to_vm[kind]
+        return jack_to_vm[kind] if kind in jack_to_vm else None
 
     def typeOf(self, name) -> str:
         return self._getTableByName(name, 'type')

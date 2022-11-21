@@ -32,12 +32,11 @@ class JackCompiler:
         for f_name in f_list:
             f_name = f_name.replace('.jack', '')
             try:
-                with open(f"{path + f_name}.jack", 'r') as r_file, open(f"./out/{dir_name}{f_name}.xml", 'w') as w_file, open(f"./out/{dir_name}{f_name}.vm", 'w') as w_file1:
-                    self.compiler = CompilationEngine(self._file_filter(r_file.readlines()), w_file, w_file1)
+                with open(f"{path + f_name}.jack", 'r') as r_file, open(f"./out/{dir_name}{f_name}.vm", 'w') as w_file:
+                    self.compiler = CompilationEngine(self._file_filter(r_file.readlines()), w_file)
                     self.compiler.CompileClass()
             except FileNotFoundError:
                 print(f'file {path + f_name} was not found')
-
 
     # 刪除註解&空白行 換行符轉空格
     def _file_filter(self, file):
