@@ -1,5 +1,6 @@
 import sys
 
+# 找出差異的程式行數 因為if while, true的實現和提供的編譯器不同所以會出現, 但可通過測試
 with open(f"./out/Pong/{sys.argv[1]}.vm", "r") as f1, open(f"./out/Pong/{sys.argv[2]}.vm", "r") as f2:
     l1 = f1.readlines()
     l2 = f2.readlines()

@@ -5,7 +5,9 @@ from VMWriter import *
 
 
 class CompilationEngine:
-    """ 
+    """
+    處理所有語法, 呼叫對應的函數解析token
+
     每隻function註解為該語法結構
     'xxx' 表示 xxx是keyword或symbol
     x? 表示 x 出現 0 次或 1 次
@@ -105,14 +107,18 @@ class CompilationEngine:
             self.tokenizer.next()
             self.compileVarDec(tab_size)
 
-        # 在function name args中宣告的數量只看參數列表, 不加上this
+        # 在"function name args"中宣告的args數量只看參數列表, 不加上this
         self.writer.writeFunction(f"{self.className}.{f_name}", self.table.index[IDT_VAR])
         if f_keyword == keyword['method']:
+            # method函數開頭要先push 呼叫class的this到第一個參數
             self.writer.writePush(VM_ARG, 0)
+            # this設給當前函數的this
             self.writer.writePop(VM_POINTER, 0)
         elif f_keyword == keyword['constructor']:
-            self.writer.writePush(VM_CONST, self.table.index[IDT_FIELD])
+            # constructor函數開頭要先分配空間給此class, 大小根據field變數數量決定
+            self.writer.writePush(VM_CONST, self.table.varCount(IDT_FIELD))
             self.writer.writeCall("Memory.alloc", 1)
+            # 取得的空間開頭會設給class的this
             self.writer.writePop(VM_POINTER, 0)
 
         # statements
@@ -138,7 +144,6 @@ class CompilationEngine:
         if self._tokenParse('identifier', tab_size):
             raise TokenizerExcept('ParameterList varName not found')
         self.table.define(self.tokenizer.identifier(), i_type, IDT_ARG)
-        # 計算參數數量
         # (',' varName)* 最後會前進到 ')'停止
         while self.tokenizer.checkNext() == symbol[',']:
             self.tokenizer.next()
@@ -187,7 +192,7 @@ class CompilationEngine:
 
         if self._tokenParse('symbol', tab_size, ';'):
             raise TokenizerExcept('compileDo ";" not found')
-        # do return 後不做事
+        # 不管return甚麼都丟棄到temp 0
         self.writer.writePop(VM_TEMP, 0)
 
     def compileLet(self, tab_size) -> None:
@@ -202,6 +207,7 @@ class CompilationEngine:
 
         self.tokenizer.next()
         # ('[' expression ']')?
+        # 如果是arr物件要賦值, 先將arr pointer push到stack中
         if self.tokenizer.checkSymbol('['):
             is_arr = True
             self.tokenizer.next()
@@ -227,16 +233,19 @@ class CompilationEngine:
             raise TokenizerExcept('compileLet ";" not found')
         # set '='後面 expression result的值給varName
         if is_arr:
+            # 如果是陣列賦值, 先將expression結果pop到temp 0, 再跳到arr pointer位置, 最後將temp 0 push到arr[i]內
             self.writer.writePop(VM_TEMP, 0)
             self.writer.writePop(VM_POINTER, 1)
             self.writer.writePush(VM_TEMP, 0)
             self.writer.writePop(VM_THAT, 0)
         else:
+            # 其他狀況直接pop expression結果到變數位置
             self.writer.writePop(kind, idx)
 
     def compileWhile(self, tab_size) -> None:
         """ 'while' '(' expression ')' '{' statements '}' """
         tab_size += 1
+        # idx變數儲存cod_idx, 確保在statements中cod_idx被改變的情形
         idx = self.cod_idx
         self.cod_idx += 1
         # '('
@@ -280,6 +289,7 @@ class CompilationEngine:
             self.CompileExpression(tab_size)
             self.tokenizer.next()
         else:
+            # 如果沒有return內容須push 0到stack中做為return值
             self.writer.writePush(VM_CONST, 0)
 
         # ';'
@@ -290,7 +300,7 @@ class CompilationEngine:
     def compileIf(self, tab_size) -> None:
         """ 'if' '(' expression ')' '{' statements '}' ( 'else' '{' statements '}' )? """
         tab_size += 1
-        # 區塊中可能包含if,while. 儲存當前if用到的index
+        # idx變數儲存cod_idx, 確保在statements中cod_idx被改變的情形
         idx = self.if_idx
         self.if_idx += 1
 
@@ -299,12 +309,14 @@ class CompilationEngine:
 
         # expression
         self.tokenizer.next()
+        # 先計算完表達式在決定流程
         self.CompileExpression(tab_size)
 
         # ')'
         if self._tokenParse('symbol', tab_size, ')'):
             raise TokenizerExcept('compileReturn ")" not found')
 
+        # TRUE:往下走, FALSE:跳到FALSE標籤
         self.writer.writeIf(f"IF_TRUE{idx}")
         self.writer.writeGoto(f"IF_FALSE{idx}")
         self.writer.writeLabel(f"IF_TRUE{idx}")
@@ -322,6 +334,7 @@ class CompilationEngine:
 
         # ( 'else' '{' statements '}' )?
         if self.tokenizer.checkNext() == keyword['else']:
+            # 如果有else區塊, FALSE標籤變成else開始標籤,新增END標籤在if-else結尾處
             self.writer.writeGoto(f"IF_END{idx}")
             self.writer.writeLabel(f"IF_FALSE{idx}")
             if self._tokenParse('keyword', tab_size):
@@ -351,6 +364,7 @@ class CompilationEngine:
             # op
             if self._tokenParse('symbol', tab_size, self.tokenizer.checkNext()):
                 raise TokenizerExcept('CompileExpression op not found')
+            # 加入'b'辨別是二元運算子
             op = ('b' if self.tokenizer.symbol() is '-' else '') + self.tokenizer.symbol()
             # term
             self.tokenizer.next()
@@ -414,7 +428,7 @@ class CompilationEngine:
         f_name = self.tokenizer.identifier()
         f_len = 0
         f_type, f_kind, f_idx = self.table.paramOf(f_name)
-        # 如果是varName, 要多傳該變數指向的this(同method)
+        # 如果是varName, 要多傳該變數指向的this(由symbol table取得)
         if f_type is not None:
             f_name = f_type
             self.writer.writePush(f_kind, f_idx)
@@ -423,11 +437,12 @@ class CompilationEngine:
         # '('
         self.tokenizer.next()
         if self.tokenizer.checkSymbol('('):
+            # 表示直接以subroutineName()呼叫, 多傳入this作為第一個參數
             f_len += 1 + process_expressionList()
             p_name = self.className
             self.writer.writePush(VM_POINTER, 0)
         elif self.tokenizer.checkSymbol('.'):
-            # subroutineName
+            # className.subroutineName, 呼叫的class名稱由symbol table取得
             if self._tokenParse('identifier', tab_size):
                 raise TokenizerExcept('SubroutineCall subroutineName not found')
             p_name, f_name = f_name, self.tokenizer.identifier()
@@ -437,9 +452,6 @@ class CompilationEngine:
         else:
             raise TokenizerExcept('SubroutineCall (|. not found')
         self.writer.writeCall(f"{p_name}.{f_name}", f_len)
-
-    def _getTabStr(self, tab_size) -> str:
-        return '  ' * tab_size
 
     # 拉出處理token程式return True表示失敗，需丟except
     def _tokenParse(self, type, tab_size, checkVal='') -> bool:
@@ -451,6 +463,7 @@ class CompilationEngine:
         return True
 
     def _processVarName(self, tab_size):
+        """定義變數到symbol table"""
         i_type, kind = None, self.tokenizer.keyWord()
         # type
         if self.tokenizer.next() and (self.tokenizer.isType() or self.tokenizer.checkTokenType('identifier')):
@@ -474,12 +487,14 @@ class CompilationEngine:
             raise TokenizerExcept(f'VarName symbol ";" not found')
 
     def _termSymbol(self, tab_size):
+        """解析符號"""
         if self.tokenizer.checkSymbol('('):
             self.tokenizer.next()
             self.CompileExpression(tab_size)
             if self._tokenParse('symbol', tab_size, ')'):
                 raise TokenizerExcept('CompileTerm ) not found')
         elif self.tokenizer.symbol() in [symbol['~'], symbol['-']]:
+            """特殊的一元運算符處理"""
             op = ('u' if self.tokenizer.symbol() is symbol['-'] else '') + self.tokenizer.symbol()
             self.tokenizer.next()
             self.CompileTerm(tab_size)
@@ -488,9 +503,17 @@ class CompilationEngine:
             raise TokenizerExcept('CompileTerm processSymbol error')
 
     def _termIdentifier(self, tab_size):
+        """解析標識浮token"""
         # 三種模式開頭都是identifier, 要再往前一步(LL(1))才知道如何處理
         next_token = self.tokenizer.checkNext()
-        # varName '[' expression ']'
+        """varName '[' expression ']'
+        取得陣列值的步驟為
+        1. 解析expression
+        2. push arr pointer, expression結果
+        3. add
+        4. pop到that
+        5. 取值(that 0)
+        """
         if next_token == symbol['[']:
             var_name = self.tokenizer.identifier()
             if self._tokenParse('symbol', tab_size, '['):
@@ -514,6 +537,7 @@ class CompilationEngine:
             self.writer.writePush(kind, idx)
 
     def _termString(self, string):
+        """解析字串"""
         self.writer.writePush(VM_CONST, len(string))
         self.writer.writeCall('String.new', 1)
         for c in string:
@@ -522,6 +546,7 @@ class CompilationEngine:
             self.writer.writeCall('String.appendChar', 2)
 
     def _termKeywordConst(self, key):
+        """解析關鍵字常數 (true, false, null, this)"""
         if key is keyword['true']:
             self.writer.writePush(VM_CONST, 1)
             self.writer.writeArithmetic(VM_NEG)

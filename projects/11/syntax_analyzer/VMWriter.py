@@ -1,4 +1,5 @@
 class VMWriter:
+    """寫入VM命令到.vm檔"""
     def __init__(self, o_file) -> None:
         self.file = o_file
 
