@@ -382,9 +382,11 @@ class CompilationEngine:
             # op
             if self._tokenParse('symbol', tab_size, self.tokenizer.checkNext()):
                 raise TokenizerExcept('CompileExpression op not found')
+            op = self.tokenizer.symbol()
             # term
             self.tokenizer.next()
             self.CompileTerm(tab_size)
+            self.writer.writeArithmetic(operation[op])
 
         self.out.write(self._getTabStr(tab_size - 1) + '</expression>\n')
 
@@ -449,20 +451,20 @@ class CompilationEngine:
 
         # subroutineName | className | varName
         f_name = self.tokenizer.identifier()
-
         # '('
         self.tokenizer.next()
         if self.tokenizer.checkSymbol('('):
+            f_len = 1 + process_expressionList()
             p_name = self.className
-            f_len = 1
             self.writer.writePush(VM_POINTER, 0)
         elif self.tokenizer.checkSymbol('.'):
             f_len = 0
             # subroutineName
             if self._tokenParse('identifier', tab_size):
                 raise TokenizerExcept('SubroutineCall subroutineName not found')
-            self.tokenizer.next()
             p_name, f_name = f_name, self.tokenizer.identifier()
+            # '('
+            self.tokenizer.next()
             f_len += process_expressionList()
         else:
             raise TokenizerExcept('SubroutineCall (|. not found')
@@ -507,8 +509,7 @@ class CompilationEngine:
         if self.tokenizer.checkSymbol('('):
             self.tokenizer.next()
             self.CompileExpression(tab_size)
-            if not self._tokenParse('symbol', tab_size, ')'):
-                print(self.tokenizer.token)
+            if self._tokenParse('symbol', tab_size, ')'):
                 raise TokenizerExcept('CompileTerm ) not found')
         elif self.tokenizer.symbol() in [symbol['~'], symbol['-']]:
             op = ('u' if self.tokenizer.symbol() is symbol['-'] else '') + self.tokenizer.symbol()
