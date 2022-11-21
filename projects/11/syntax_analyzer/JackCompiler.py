@@ -7,7 +7,7 @@ from CompilationEngine import *
 
 class JackCompiler:
     def __init__(self) -> None:
-        self.complier = None
+        self.compiler = None
 
 
     def main(self):
@@ -20,17 +20,21 @@ class JackCompiler:
         if arg1.endswith('.jack'):
             f_list = [arg1]
             path = './'
+            dir_name = ''
         else:
             f_list = list(filter(lambda f: f.endswith('.jack'), os.listdir(f'../{arg1}')))
             path = f'../{arg1}/'
+            dir_name = f'{arg1}/'
+            if not os.path.exists(f"./out/{arg1}"):
+                os.mkdir(f"./out/{arg1}")
 
         # 讀取每筆檔案
         for f_name in f_list:
             f_name = f_name.replace('.jack', '')
             try:
-                with open(f"{path + f_name}.jack", 'r') as r_file, open(f"{path + f_name}.xml", 'w') as w_file:
-                    self.complier = CompilationEngine(self._file_filter(r_file.readlines()), w_file)
-                    self.complier.CompileClass()
+                with open(f"{path + f_name}.jack", 'r') as r_file, open(f"./out/{dir_name}{f_name}.xml", 'w') as w_file, open(f"./out/{dir_name}{f_name}.vm", 'w') as w_file1:
+                    self.compiler = CompilationEngine(self._file_filter(r_file.readlines()), w_file, w_file1)
+                    self.compiler.CompileClass()
             except FileNotFoundError:
                 print(f'file {path + f_name} was not found')
 

@@ -17,14 +17,14 @@ class CompilationEngine:
     compileIf()
     """
 
-    def __init__(self, in_stream, out_stream) -> None:
+    def __init__(self, in_stream, out_stream, out_stream1) -> None:
         self.tokenizer = JackTokenizer(in_stream)
         self.table = SymbolTable()
         self.out = out_stream
-        self.writer = VMWriter(out_stream)
+        self.writer = VMWriter(out_stream1)
         self.className = ''
+        self.cod_idx = 0
         self.if_idx = 0
-        self.while_idx = 0
 
     def CompileClass(self) -> None:
         """ 'class' className '{' classVarDec* subroutineDec* '}' """
@@ -65,18 +65,15 @@ class CompilationEngine:
     def CompileSubroutine(self, tab_size) -> None:
         """ ('constructor' | 'function' | 'method') ('void' | type) subroutineName '(' parameterList ')' subroutineBody """
         self.out.write(self._getTabStr(tab_size) + '<subroutineDec>\n')
-        tab_size += 1
         # 'constructor' | 'function' | 'method'
         tab_size += 1
         #  reset symbol table
         self.table.startSubroutine()
         # method 函數第一個多傳this
         if self.tokenizer.keyWord() is keyword['method']:
-            p_len = 1
             # set this using arg 0
             is_method = True
         else:
-            p_len = 0
             is_method = False
         if self.tokenizer.keyWord() is keyword['constructor']:
             # TODO check idx要怎麼傳
@@ -96,26 +93,21 @@ class CompilationEngine:
             raise TokenizerExcept('Subroutine "(" not found')
 
         # parameterList
-        p_len += self.compileParameterList(tab_size)
+        self.compileParameterList(tab_size)
 
         # 不管compileParameterList()有沒有值, 下個token必為 ')'
         if self._tokenParse('symbol', tab_size, ')'):
             raise TokenizerExcept('Subroutine ")" not found')
 
-        self.writer.writeFunction(f"{self.className}.{f_name}", p_len)
-        if is_method:
-            self.writer.writePush(VM_ARG, 0)
-            self.writer.writePop(VM_POINTER, 0)
-
         self.tokenizer.next()
         if self.tokenizer.checkSymbol('{'):
-            self.ComplieSubroutineBody(tab_size)
+            self.ComplieSubroutineBody(f_name, is_method, tab_size)
         else:
             raise TokenizerExcept('Subroutine "{" not found')
 
         self.out.write(self._getTabStr(tab_size - 1) + '</subroutineDec>\n')
 
-    def ComplieSubroutineBody(self, tab_size):
+    def ComplieSubroutineBody(self, f_name, is_method, tab_size):
         """ '{' varDec* statements '}' """
         self.out.write(self._getTabStr(tab_size) + '<subroutineBody>\n')
         tab_size += 1
@@ -124,6 +116,12 @@ class CompilationEngine:
         while self.tokenizer.checkNext() == keyword['var']:
             self.tokenizer.next()
             self.compileVarDec(tab_size)
+
+        local_var = (1 if is_method else 0) + self.table.index[IDT_VAR]
+        self.writer.writeFunction(f"{self.className}.{f_name}", local_var)
+        if is_method:
+            self.writer.writePush(VM_ARG, 0)
+            self.writer.writePop(VM_POINTER, 0)
 
         # statements
         if self.tokenizer.checkNext() in ['let', 'do', 'if', 'while', 'return']:
@@ -135,17 +133,16 @@ class CompilationEngine:
 
         self.out.write(self._getTabStr(tab_size - 1) + '</subroutineBody>\n')
 
-    def compileParameterList(self, tab_size) -> int:
+    def compileParameterList(self, tab_size) -> None:
         """ ((type varName) (',' type varName)*)? """
         self.out.write(self._getTabStr(tab_size) + '<parameterList>\n')
 
         if self.tokenizer.checkNext() == symbol[')']:
             self.out.write(self._getTabStr(tab_size) + '</parameterList>\n')
-            return 0
+            return
 
         tab_size += 1
         self.tokenizer.next()
-        i_type = None
         # type
         if not self.tokenizer.isType() or self.tokenizer.checkTokenType('identifier'):
             raise TokenizerExcept('ParameterList type not found')
@@ -155,10 +152,8 @@ class CompilationEngine:
             raise TokenizerExcept('ParameterList varName not found')
         self.table.define(self.tokenizer.identifier(), i_type, IDT_ARG)
         # 計算參數數量
-        res = 1
         # (',' varName)* 最後會前進到 ')'停止
         while self.tokenizer.checkNext() == symbol[',']:
-            res += 1
             self.tokenizer.next()
             # type
             if not self.tokenizer.next() and (self.tokenizer.isType() or self.tokenizer.checkTokenType('identifier')):
@@ -268,12 +263,14 @@ class CompilationEngine:
         """ 'while' '(' expression ')' '{' statements '}' """
         self.out.write(self._getTabStr(tab_size) + '<whileStatement>\n')
         tab_size += 1
+        idx = self.cod_idx
+        self.cod_idx += 1
         # '('
         if self._tokenParse('symbol', tab_size, '('):
             raise TokenizerExcept('compileWhile "(" not found')
 
         # 每次迴圈要從條件式重新執行
-        self.writer.writeLabel(f"WHILE_EXP{self.while_idx}")
+        self.writer.writeLabel(f"WHILE_EXP{idx}")
         # expression
         self.tokenizer.next()
         self.CompileExpression(tab_size)
@@ -283,7 +280,7 @@ class CompilationEngine:
             raise TokenizerExcept('compileWhile ")" not found')
         # 條件不成立(!true)時跳到END
         self.writer.writeArithmetic(VM_NOT)
-        self.writer.writeIf(f"WHILE_END{self.while_idx}")
+        self.writer.writeIf(f"WHILE_END{idx}")
 
         # '{'
         if self._tokenParse('symbol', tab_size, '{'):
@@ -295,9 +292,9 @@ class CompilationEngine:
         # '}'
         if self._tokenParse('symbol', tab_size, '}'):
             raise TokenizerExcept('compileWhile "}" not found')
+        self.writer.writeGoto(f"WHILE_EXP{idx}")
         # while 結束位置
-        self.writer.writeLabel(f"WHILE_END{self.while_idx}")
-        self.while_idx += 1
+        self.writer.writeLabel(f"WHILE_END{idx}")
 
         self.out.write(self._getTabStr(tab_size - 1) + '</whileStatement>\n')
 
@@ -324,6 +321,9 @@ class CompilationEngine:
     def compileIf(self, tab_size) -> None:
         """ 'if' '(' expression ')' '{' statements '}' ( 'else' '{' statements '}' )? """
         tab_size += 1
+        # 區塊中可能包含if,while. 儲存當前if用到的index
+        idx = self.if_idx
+        self.if_idx += 1
 
         if self._tokenParse('symbol', tab_size, '('):
             raise TokenizerExcept('compileIf "(" not found')
@@ -336,9 +336,9 @@ class CompilationEngine:
         if self._tokenParse('symbol', tab_size, ')'):
             raise TokenizerExcept('compileReturn ")" not found')
 
-        self.writer.writeIf(f"IF_TRUE{self.if_idx}")
-        self.writer.writeGoto(f"IF_FALSE{self.if_idx}")
-        self.writer.writeLabel(f"IF_TRUE{self.if_idx}")
+        self.writer.writeIf(f"IF_TRUE{idx}")
+        self.writer.writeGoto(f"IF_FALSE{idx}")
+        self.writer.writeLabel(f"IF_TRUE{idx}")
 
         # '{'
         if self._tokenParse('symbol', tab_size, '{'):
@@ -351,9 +351,9 @@ class CompilationEngine:
         if self._tokenParse('symbol', tab_size, '}'):
             raise TokenizerExcept('compileIf if "{" not found')
 
+        self.writer.writeGoto(f"IF_END{idx}")
         # ( 'else' '{' statements '}' )?
-        self.writer.writeLabel(f"IF_FALSE{self.if_idx}")
-        self.if_idx += 1
+        self.writer.writeLabel(f"IF_FALSE{idx}")
         if self.tokenizer.checkNext() == keyword['else']:
             if self._tokenParse('keyword', tab_size):
                 raise TokenizerExcept('compileIf else not found')
@@ -368,6 +368,7 @@ class CompilationEngine:
             # '}'
             if self._tokenParse('symbol', tab_size, '}'):
                 raise TokenizerExcept('compileIf else "}" not found')
+        self.writer.writeLabel(f"IF_END{idx}")
 
         self.out.write(self._getTabStr(tab_size - 1) + '</ifStatement>\n')
 
@@ -382,11 +383,11 @@ class CompilationEngine:
             # op
             if self._tokenParse('symbol', tab_size, self.tokenizer.checkNext()):
                 raise TokenizerExcept('CompileExpression op not found')
-            op = self.tokenizer.symbol()
+            op = ('b' if self.tokenizer.symbol() is '-' else '') + self.tokenizer.symbol()
             # term
             self.tokenizer.next()
             self.CompileTerm(tab_size)
-            self.writer.writeArithmetic(operation[op])
+            self.writer.writeArithmetic(vm_operation[op])
 
         self.out.write(self._getTabStr(tab_size - 1) + '</expression>\n')
 
@@ -398,7 +399,7 @@ class CompilationEngine:
         tab_size += 1
         # integerConstant, stringConstant, keywordConstant
         if self.tokenizer.tokenType() == tokenType['keyword']:
-            self.writer.writePush(self.table.kindOf(self.tokenizer.keyWord()), self.table.indexOf(self.tokenizer.keyWord()))
+            self._termKeywordConst(self.tokenizer.keyWord())
         elif self.tokenizer.tokenType() == tokenType['intConst']:
             self.writer.writePush(VM_CONST, self.tokenizer.intVal())
         elif self.tokenizer.tokenType() == tokenType['strConst']:
@@ -515,7 +516,7 @@ class CompilationEngine:
             op = ('u' if self.tokenizer.symbol() is symbol['-'] else '') + self.tokenizer.symbol()
             self.tokenizer.next()
             self.CompileTerm(tab_size)
-            self.writer.writeArithmetic(operation(op))
+            self.writer.writeArithmetic(vm_operation[op])
         else:
             raise TokenizerExcept('CompileTerm processSymbol error')
 
@@ -553,3 +554,13 @@ class CompilationEngine:
             # 第一個參數是string.new完取得的內容
             self.writer.writeCall('String.appendChar', 2)
 
+    def _termKeywordConst(self, key):
+        if key is keyword['true']:
+            self.writer.writePush(VM_CONST, 1)
+            self.writer.writeArithmetic(VM_NEG)
+        elif key in 'false,null':
+            self.writer.writePush(VM_CONST, 0)
+        elif key is 'this':
+            self.writer.writePush(VM_POINTER, 0)
+        else:
+            print('compiler termKeywordConst error')

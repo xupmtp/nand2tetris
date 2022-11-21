@@ -48,12 +48,6 @@ class JackTokenizer:
         return keyword[self.token]
 
     def symbol(self) -> str:
-        if self.token == symbol['<']:
-            return '&lt;'
-        elif self.token == symbol['>']:
-            return '&gt;'
-        elif self.token == symbol['&']:
-            return '&amp;'
         return symbol[self.token]
 
     def identifier(self) -> str:

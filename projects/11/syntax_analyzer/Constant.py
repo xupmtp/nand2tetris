@@ -22,20 +22,6 @@ keyword = {
     'return': 'return'
 }
 
-operation = {
-    '+': 'add',
-    'b-': 'sub',
-    'u-': 'neg',
-    '>': 'gt',
-    '<': 'lt',
-    '&': 'and',
-    '|': 'or',
-    '~': 'not',
-    '=': 'eq',
-    '*': 'call Math.multiply 2',
-    '/': 'call Math.divide 2'
-}
-
 symbol = {
     '{': '{',
     '}': '}',
@@ -66,6 +52,20 @@ tokenType = {
     'identifier': 'identifier'
 }
 
+vm_operation = {
+    '+': 'add',
+    'b-': 'sub',
+    'u-': 'neg',
+    '>': 'gt',
+    '<': 'lt',
+    '&': 'and',
+    '|': 'or',
+    '~': 'not',
+    '=': 'eq',
+    '*': 'call Math.multiply 2',
+    '/': 'call Math.divide 2'
+}
+
 # Jack variable type
 IDT_STATIC = 'static'
 IDT_FIELD = 'field'
@@ -91,3 +91,4 @@ VM_AND = 'and'
 VM_OR = 'or'
 VM_NOT = 'not'
 VM_EQ = 'eq'
+

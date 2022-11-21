@@ -43,9 +43,9 @@ class SymbolTable:
     def _getTableByName(self, name, key):
         """以name查屬性, 子域優先"""
         if name in self.sub_table:
-            return self.sub_table[key]
+            return self.sub_table[name][key]
         elif name in self.class_table:
-            return self.class_table[key]
+            return self.class_table[name][key]
         return None
 
     def paramOf(self, name):
