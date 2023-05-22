@@ -29,7 +29,17 @@
 [Unit 6 Assembler](https://skinny-grill-dc2.notion.site/Unit-6-Assembler-afa2d4dc6b21478dbcc5abccf596af4d)
 
 ## Part 2
-TODO
+[Unit 7 VM I: Stack Arithmetic](https://skinny-grill-dc2.notion.site/Unit-7-VM-I-Stack-Arithmetic-092e0bd0b1594de28ea6bd88d89c7a7d)
+
+[Unit 8 VM II: Program Control](https://skinny-grill-dc2.notion.site/Unit-8-VM-II-Program-Control-9beac0c4edfd455dbafdced8f7380ae8)
+
+[Unit 9 High-Level Language](https://skinny-grill-dc2.notion.site/Unit-9-High-Level-Language-dceea5eba66d4e6e8df9e80701459447)
+
+[Unit 10 Compiler I: Syntax Analysis](https://www.notion.so/Unit-10-Compiler-I-Syntax-Analysis-f76c739d2c11400f999a2d31698146de)
+
+[Unit 11 Compiler II: Code Generation](https://www.notion.so/Unit-11-Compiler-II-Code-Generation-fc4d3092923b46a686594f3293da56f5)
+
+[Unit 12 Operating System](https://www.notion.so/Unit-12-Operating-System-7e8ab894a6b343d5b045f510da8240ff)
 
 ## 附錄
 [官方網站](https://www.nand2tetris.org/)
